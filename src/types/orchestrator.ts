@@ -4,6 +4,11 @@
  * DO NOT modify without backend coordination.
  */
 
+import { PlatformConfig, ConfigUpdateResult, ConfigUpdateStatus } from "./config";
+
+// Re-export config types for convenience
+export type { PlatformConfig, ConfigUpdateResult, ConfigUpdateStatus };
+
 // ========================================
 // ENUMS
 // ========================================
@@ -53,8 +58,8 @@ export interface ServiceInfo {
 }
 
 export interface ConfigInfo {
-  editable: Record<string, unknown>;
-  frozen: Record<string, unknown> | null;
+  editable: PlatformConfig;
+  frozen: PlatformConfig | null;
 }
 
 // ========================================
@@ -105,7 +110,7 @@ export interface ServiceHeartbeat {
 /**
  * Available hub methods to invoke
  */
-export type HubMethod = "RequestFullState" | "StartSession" | "StopSession";
+export type HubMethod = "RequestFullState" | "StartSession" | "StopSession" | "UpdateConfig";
 
 // ========================================
 // FRONTEND STATE
@@ -116,6 +121,9 @@ export interface OrchestratorState {
   isStale: boolean;
   session: SessionInfo | null;
   services: ServiceInfo[];
+  config: PlatformConfig | null;
+  frozenConfig: PlatformConfig | null;
+  configUpdateResult: ConfigUpdateResult | null;
   error: string | null;
   lastSnapshotAt: string | null;
 }

@@ -15,7 +15,10 @@ import {
   ServiceType,
   ALL_SERVICE_TYPES,
   DEFAULT_SERVICE_STATE,
+  PlatformConfig,
+  ConfigUpdateResult,
 } from "@/types/orchestrator";
+import { DEFAULT_PLATFORM_CONFIG } from "@/types/config";
 
 const HUB_URL = "http://localhost:5114/hub/orchestrator";
 
@@ -27,6 +30,9 @@ const initialState: OrchestratorState = {
     service,
     ...DEFAULT_SERVICE_STATE,
   })),
+  config: null,
+  frozenConfig: null,
+  configUpdateResult: null,
   error: null,
   lastSnapshotAt: null,
 };
@@ -59,11 +65,18 @@ export function useOrchestrator() {
       return serviceInfo ?? { service: serviceType, ...DEFAULT_SERVICE_STATE };
     });
 
+    // Use snapshot config or default if not provided
+    const editableConfig = snapshot.config?.editable ?? DEFAULT_PLATFORM_CONFIG;
+    const frozenConfig = snapshot.config?.frozen ?? null;
+
     setState({
       isConnected: true,
       isStale: false,
       session: snapshot.session,
       services,
+      config: editableConfig,
+      frozenConfig,
+      configUpdateResult: null,
       error: null,
       lastSnapshotAt: new Date().toISOString(),
     });
@@ -105,6 +118,16 @@ export function useOrchestrator() {
     }));
   }, []);
 
+  // Handle ConfigUpdateResult
+  const handleConfigUpdateResult = useCallback((result: ConfigUpdateResult) => {
+    console.log("[Orchestrator] ConfigUpdateResult", result);
+    setState((prev) => ({
+      ...prev,
+      configUpdateResult: result,
+      error: result.status === "Rejected" ? result.reason ?? "Config update rejected" : null,
+    }));
+  }, []);
+
   // Initialize connection
   useEffect(() => {
     const connection = new HubConnectionBuilder()
@@ -127,6 +150,7 @@ export function useOrchestrator() {
     connection.on("SessionStateChanged", handleSessionStateChanged);
     connection.on("ServiceStateChanged", handleServiceStateChanged);
     connection.on("ServiceHeartbeat", handleServiceHeartbeat);
+    connection.on("ConfigUpdateResult", handleConfigUpdateResult);
 
     // Connection lifecycle handlers
     connection.onclose((error) => {
@@ -180,6 +204,7 @@ export function useOrchestrator() {
     handleSessionStateChanged,
     handleServiceStateChanged,
     handleServiceHeartbeat,
+    handleConfigUpdateResult,
     setConnected,
   ]);
 
@@ -254,8 +279,46 @@ export function useOrchestrator() {
     }
   }, []);
 
+  // Update local config state (in-memory only)
+  const setLocalConfig = useCallback((config: PlatformConfig) => {
+    setState((prev) => ({
+      ...prev,
+      config,
+      configUpdateResult: null, // Clear previous result when editing
+    }));
+  }, []);
+
+  // Send full config to backend
+  const updateConfig = useCallback(async () => {
+    const connection = connectionRef.current;
+    if (!connection || connection.state !== HubConnectionState.Connected) {
+      setState((prev) => ({ ...prev, error: "Not connected" }));
+      return;
+    }
+
+    if (!state.config) {
+      setState((prev) => ({ ...prev, error: "No config to save" }));
+      return;
+    }
+
+    try {
+      setState((prev) => ({ ...prev, error: null, configUpdateResult: null }));
+      await connection.invoke("UpdateConfig", { config: state.config });
+    } catch (err) {
+      console.error("[Orchestrator] UpdateConfig failed", err);
+      setState((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : "UpdateConfig failed",
+      }));
+    }
+  }, [state.config]);
+
   const clearError = useCallback(() => {
     setState((prev) => ({ ...prev, error: null }));
+  }, []);
+
+  const clearConfigUpdateResult = useCallback(() => {
+    setState((prev) => ({ ...prev, configUpdateResult: null }));
   }, []);
 
   return {
@@ -263,6 +326,9 @@ export function useOrchestrator() {
     startSession,
     stopSession,
     requestFullState,
+    setLocalConfig,
+    updateConfig,
     clearError,
+    clearConfigUpdateResult,
   };
 }
