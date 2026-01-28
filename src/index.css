@@ -2,95 +2,91 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* TaderJoe Design System - Dark Terminal Theme */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Dark terminal base */
+    --background: 220 20% 6%;
+    --foreground: 210 20% 90%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 220 18% 10%;
+    --card-foreground: 210 20% 90%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 220 18% 10%;
+    --popover-foreground: 210 20% 90%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Brand - Cyan accent */
+    --primary: 185 80% 50%;
+    --primary-foreground: 220 20% 6%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 210 20% 85%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 15% 15%;
+    --muted-foreground: 210 15% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 185 60% 25%;
+    --accent-foreground: 185 80% 70%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 220 15% 20%;
+    --input: 220 15% 18%;
+    --ring: 185 80% 50%;
 
     --radius: 0.5rem;
 
-    --sidebar-background: 0 0% 98%;
+    /* Status Colors */
+    --status-ready: 142 70% 45%;
+    --status-starting: 210 80% 55%;
+    --status-unhealthy: 45 90% 50%;
+    --status-fatal: 0 70% 50%;
+    --status-stopped: 220 10% 40%;
+    --status-connected: 142 70% 45%;
+    --status-disconnected: 0 70% 50%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
+    /* Session States */
+    --session-idle: 220 10% 50%;
+    --session-running: 142 70% 45%;
+    --session-starting: 210 80% 55%;
+    --session-stopping: 45 90% 50%;
+    --session-completed: 185 60% 50%;
+    --session-failed: 0 70% 50%;
 
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar (keeping for compatibility) */
+    --sidebar-background: 220 18% 8%;
+    --sidebar-foreground: 210 20% 85%;
+    --sidebar-primary: 185 80% 50%;
+    --sidebar-primary-foreground: 220 20% 6%;
+    --sidebar-accent: 220 15% 15%;
+    --sidebar-accent-foreground: 210 20% 85%;
+    --sidebar-border: 220 15% 18%;
+    --sidebar-ring: 185 80% 50%;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Same as root - always dark */
+    --background: 220 20% 6%;
+    --foreground: 210 20% 90%;
+    --card: 220 18% 10%;
+    --card-foreground: 210 20% 90%;
+    --popover: 220 18% 10%;
+    --popover-foreground: 210 20% 90%;
+    --primary: 185 80% 50%;
+    --primary-foreground: 220 20% 6%;
+    --secondary: 220 15% 18%;
+    --secondary-foreground: 210 20% 85%;
+    --muted: 220 15% 15%;
+    --muted-foreground: 210 15% 55%;
+    --accent: 185 60% 25%;
+    --accent-foreground: 185 80% 70%;
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 15% 20%;
+    --input: 220 15% 18%;
+    --ring: 185 80% 50%;
   }
 }
 
@@ -100,6 +96,108 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+
+  /* Terminal-style monospace for data */
+  .font-mono {
+    font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', monospace;
+  }
+}
+
+@layer components {
+  /* Status indicator dot */
+  .status-dot {
+    @apply w-2.5 h-2.5 rounded-full;
+  }
+
+  .status-dot-lg {
+    @apply w-3 h-3 rounded-full;
+  }
+
+  /* Pulse animation for active states */
+  .status-pulse {
+    @apply animate-pulse;
+  }
+
+  /* Service state colors */
+  .service-ready {
+    @apply bg-[hsl(var(--status-ready))];
+  }
+
+  .service-starting {
+    @apply bg-[hsl(var(--status-starting))];
+  }
+
+  .service-unhealthy {
+    @apply bg-[hsl(var(--status-unhealthy))];
+  }
+
+  .service-fatal {
+    @apply bg-[hsl(var(--status-fatal))];
+  }
+
+  .service-stopped {
+    @apply bg-[hsl(var(--status-stopped))];
+  }
+
+  /* Text variants for states */
+  .text-status-ready {
+    color: hsl(var(--status-ready));
+  }
+
+  .text-status-starting {
+    color: hsl(var(--status-starting));
+  }
+
+  .text-status-unhealthy {
+    color: hsl(var(--status-unhealthy));
+  }
+
+  .text-status-fatal {
+    color: hsl(var(--status-fatal));
+  }
+
+  .text-status-stopped {
+    color: hsl(var(--status-stopped));
+  }
+
+  /* Card hover effect */
+  .card-interactive {
+    @apply transition-all duration-200;
+  }
+
+  .card-interactive:hover {
+    @apply border-primary/30;
+  }
+
+  /* Stale data indicator */
+  .stale-overlay {
+    @apply relative;
+  }
+
+  .stale-overlay::after {
+    content: '';
+    @apply absolute inset-0 bg-background/50 pointer-events-none;
+  }
+}
+
+@layer utilities {
+  /* Glow effects for status */
+  .glow-green {
+    box-shadow: 0 0 8px hsl(var(--status-ready) / 0.5);
+  }
+
+  .glow-red {
+    box-shadow: 0 0 8px hsl(var(--status-fatal) / 0.5);
+  }
+
+  .glow-blue {
+    box-shadow: 0 0 8px hsl(var(--status-starting) / 0.5);
+  }
+
+  .glow-yellow {
+    box-shadow: 0 0 8px hsl(var(--status-unhealthy) / 0.5);
   }
 }
