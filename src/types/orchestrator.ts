@@ -4,7 +4,11 @@
  * DO NOT modify without backend coordination.
  */
 
-import { PlatformConfig, ConfigUpdateResult, ConfigUpdateStatus } from "./config";
+import {
+  PlatformConfig,
+  ConfigUpdateResult,
+  ConfigUpdateStatus,
+} from "./config";
 
 // Re-export config types for convenience
 export type { PlatformConfig, ConfigUpdateResult, ConfigUpdateStatus };
@@ -14,30 +18,30 @@ export type { PlatformConfig, ConfigUpdateResult, ConfigUpdateStatus };
 // ========================================
 
 export enum SessionState {
-  Idle = "Idle",
-  ValidatingConfig = "ValidatingConfig",
-  Starting = "Starting",
-  Running = "Running",
-  Stopping = "Stopping",
-  Completed = "Completed",
-  FailedStartup = "FailedStartup",
-  FailedRuntime = "FailedRuntime",
+  Idle = 0,
+  ValidatingConfig = 1,
+  Starting = 2,
+  Running = 3,
+  Stopping = 4,
+  Completed = 5,
+  FailedStartup = 6,
+  FailedRuntime = 7,
 }
 
 export enum ServiceType {
-  MarketData = "MarketData",
-  IndicatorEngine = "IndicatorEngine",
-  StrategyEngine = "StrategyEngine",
-  TimeMachine = "TimeMachine",
-  Research = "Research",
+  MarketData = 0,
+  IndicatorEngine = 1,
+  StrategyEngine = 2,
+  TimeMachine = 3,
+  Research = 4,
 }
 
 export enum ServiceState {
-  Stopped = "Stopped",
-  Starting = "Starting",
-  Ready = "Ready",
-  Unhealthy = "Unhealthy",
-  Fatal = "Fatal",
+  Stopped = 0,
+  Starting = 1,
+  Ready = 2,
+  Unhealthy = 3,
+  Fatal = 4,
 }
 
 // ========================================
@@ -110,7 +114,11 @@ export interface ServiceHeartbeat {
 /**
  * Available hub methods to invoke
  */
-export type HubMethod = "RequestFullState" | "StartSession" | "StopSession" | "UpdateConfig";
+export type HubMethod =
+  | "RequestFullState"
+  | "StartSession"
+  | "StopSession"
+  | "UpdateConfig";
 
 // ========================================
 // FRONTEND STATE

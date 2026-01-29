@@ -13,14 +13,12 @@ import {
   ServiceHeartbeat,
   SessionState,
   ServiceType,
-  ServiceState,
   ALL_SERVICE_TYPES,
   DEFAULT_SERVICE_STATE,
   PlatformConfig,
   ConfigUpdateResult,
 } from "@/types/orchestrator";
 import { DEFAULT_PLATFORM_CONFIG } from "@/types/config";
-import { toast } from "@/hooks/use-toast";
 
 const HUB_URL = "http://localhost:5114/hub/orchestrator";
 
@@ -53,46 +51,27 @@ export function useOrchestrator() {
     }));
   }, []);
 
-  // Handle SystemStateSnapshot - replace ALL state, but preserve Fatal/Unhealthy states
-  const handleSystemStateSnapshot = useCallback((snapshot: SystemStateSnapshot) => {
-    console.log("[Orchestrator] Received SystemStateSnapshot", snapshot);
-    
-    // Ensure all services are represented
-    const servicesMap = new Map(
-      snapshot.services.map((s) => [s.service, s])
-    );
-    
-    setState((prev) => {
-      // Build services list, preserving Fatal/Unhealthy states unless explicitly recovered
+  // Handle SystemStateSnapshot - replace ALL state
+  const handleSystemStateSnapshot = useCallback(
+    (snapshot: SystemStateSnapshot) => {
+      console.log("[Orchestrator] Received SystemStateSnapshot", snapshot);
+
+      // Ensure all services are represented
+      const servicesMap = new Map(snapshot.services.map((s) => [s.service, s]));
+
       const services = ALL_SERVICE_TYPES.map((serviceType) => {
-        const snapshotService = servicesMap.get(serviceType);
-        const prevService = prev.services.find(s => s.service === serviceType);
-        
-        if (snapshotService) {
-          // If previous state was Fatal/Unhealthy, only update if new state is Ready
-          // This preserves error states for debugging
-          if (prevService && 
-              (prevService.state === ServiceState.Fatal || prevService.state === ServiceState.Unhealthy)) {
-            if (snapshotService.state === ServiceState.Ready) {
-              // Service recovered - allow the update
-              return snapshotService;
-            }
-            // Preserve the Fatal/Unhealthy state with updated heartbeat
-            return {
-              ...prevService,
-              lastHeartbeat: snapshotService.lastHeartbeat,
-            };
-          }
-          return snapshotService;
-        }
-        return { service: serviceType, ...DEFAULT_SERVICE_STATE };
+        const serviceInfo = servicesMap.get(serviceType);
+        return (
+          serviceInfo ?? { service: serviceType, ...DEFAULT_SERVICE_STATE }
+        );
       });
 
       // Use snapshot config or default if not provided
-      const editableConfig = snapshot.config?.editable ?? DEFAULT_PLATFORM_CONFIG;
+      const editableConfig =
+        snapshot.config?.editable ?? DEFAULT_PLATFORM_CONFIG;
       const frozenConfig = snapshot.config?.frozen ?? null;
 
-      return {
+      setState({
         isConnected: true,
         isStale: false,
         session: snapshot.session,
@@ -102,56 +81,40 @@ export function useOrchestrator() {
         configUpdateResult: null,
         error: null,
         lastSnapshotAt: new Date().toISOString(),
-      };
-    });
-  }, []);
+      });
+    },
+    [],
+  );
 
   // Handle SessionStateChanged - fast update
-  const handleSessionStateChanged = useCallback((event: SessionStateChanged) => {
-    console.log("[Orchestrator] SessionStateChanged", event);
-    setState((prev) => ({
-      ...prev,
-      session: prev.session
-        ? { ...prev.session, state: event.state, sessionId: event.sessionId }
-        : { state: event.state, sessionId: event.sessionId, startedAt: null },
-    }));
-  }, []);
+  const handleSessionStateChanged = useCallback(
+    (event: SessionStateChanged) => {
+      console.log("[Orchestrator] SessionStateChanged", event);
+      setState((prev) => ({
+        ...prev,
+        session: prev.session
+          ? { ...prev.session, state: event.state, sessionId: event.sessionId }
+          : { state: event.state, sessionId: event.sessionId, startedAt: null },
+      }));
+    },
+    [],
+  );
 
-  // Handle ServiceStateChanged - with toast notifications
-  const handleServiceStateChanged = useCallback((event: ServiceStateChanged) => {
-    console.log("[Orchestrator] ServiceStateChanged", event);
-    
-    // Show toast for important state changes
-    const serviceLabel = event.service.replace(/([A-Z])/g, ' $1').trim();
-    
-    if (event.state === ServiceState.Fatal) {
-      toast({
-        title: `${serviceLabel} Fatal`,
-        description: event.reason || "Service encountered a fatal error",
-        variant: "destructive",
-      });
-    } else if (event.state === ServiceState.Unhealthy) {
-      toast({
-        title: `${serviceLabel} Unhealthy`,
-        description: event.reason || "Service is experiencing issues",
-        variant: "destructive",
-      });
-    } else if (event.state === ServiceState.Ready) {
-      toast({
-        title: `${serviceLabel} Ready`,
-        description: "Service is now operational",
-      });
-    }
-    
-    setState((prev) => ({
-      ...prev,
-      services: prev.services.map((s) =>
-        s.service === event.service
-          ? { ...s, state: event.state, error: event.reason ?? (event.state === ServiceState.Ready ? null : s.error) }
-          : s
-      ),
-    }));
-  }, []);
+  // Handle ServiceStateChanged
+  const handleServiceStateChanged = useCallback(
+    (event: ServiceStateChanged) => {
+      console.log("[Orchestrator] ServiceStateChanged", event);
+      setState((prev) => ({
+        ...prev,
+        services: prev.services.map((s) =>
+          s.service === event.service
+            ? { ...s, state: event.state, error: event.reason ?? s.error }
+            : s,
+        ),
+      }));
+    },
+    [],
+  );
 
   // Handle ServiceHeartbeat
   const handleServiceHeartbeat = useCallback((event: ServiceHeartbeat) => {
@@ -160,7 +123,7 @@ export function useOrchestrator() {
       services: prev.services.map((s) =>
         s.service === event.service
           ? { ...s, lastHeartbeat: event.timestamp }
-          : s
+          : s,
       ),
     }));
   }, []);
@@ -171,7 +134,10 @@ export function useOrchestrator() {
     setState((prev) => ({
       ...prev,
       configUpdateResult: result,
-      error: result.status === "Rejected" ? result.reason ?? "Config update rejected" : null,
+      error:
+        result.status === "Rejected"
+          ? (result.reason ?? "Config update rejected")
+          : null,
     }));
   }, []);
 
@@ -184,7 +150,7 @@ export function useOrchestrator() {
           // Exponential backoff: 0, 2s, 4s, 8s, 16s, max 30s
           const delay = Math.min(
             Math.pow(2, retryContext.previousRetryCount) * 1000,
-            30000
+            30000,
           );
           return delay;
         },
@@ -350,6 +316,7 @@ export function useOrchestrator() {
 
     try {
       setState((prev) => ({ ...prev, error: null, configUpdateResult: null }));
+      console.log("[Orchestrator] UpdateConfig", state.config);
       await connection.invoke("UpdateConfig", { config: state.config });
     } catch (err) {
       console.error("[Orchestrator] UpdateConfig failed", err);

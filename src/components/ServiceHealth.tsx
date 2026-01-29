@@ -10,8 +10,12 @@ import {
   Search,
   AlertTriangle,
 } from "lucide-react";
+import React from "react";
 
-const SERVICE_ICONS: Record<ServiceType, React.ComponentType<{ className?: string }>> = {
+const SERVICE_ICONS: Record<
+  ServiceType,
+  React.ComponentType<{ className?: string }>
+> = {
   [ServiceType.MarketData]: TrendingUp,
   [ServiceType.IndicatorEngine]: Server,
   [ServiceType.StrategyEngine]: Brain,
@@ -89,8 +93,23 @@ function ServiceCard({ service }: { service: ServiceInfo }) {
   const label = SERVICE_LABELS[service.service];
   const styles = getStateStyles(service.state);
 
+  const [, forceTick] = React.useState(0);
+
+  React.useEffect(() => {
+    const id = setInterval(() => {
+      forceTick((t) => t + 1);
+    }, 5_000); // every 10s (tweak as needed)
+
+    return () => clearInterval(id);
+  }, []);
+
   return (
-    <Card className={cn("card-interactive", service.state === ServiceState.Fatal && "border-status-fatal/50")}>
+    <Card
+      className={cn(
+        "card-interactive",
+        service.state === ServiceState.Fatal && "border-status-fatal/50",
+      )}
+    >
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -104,7 +123,17 @@ function ServiceCard({ service }: { service: ServiceInfo }) {
           <div className="flex items-center justify-between">
             <span className="text-xs text-muted-foreground">State</span>
             <span className={cn("font-mono text-xs font-medium", styles.text)}>
-              {service.state}
+              {service.state === 0
+                ? "Stopped"
+                : service.state === 1
+                  ? "Starting"
+                  : service.state === 2
+                    ? "Ready"
+                    : service.state === 3
+                      ? "Unhealthy"
+                      : service.state === 4
+                        ? "Fatal"
+                        : "Unknown"}
             </span>
           </div>
 
