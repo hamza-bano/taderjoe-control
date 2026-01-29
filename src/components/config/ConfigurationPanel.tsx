@@ -1,21 +1,42 @@
 import { useOrchestratorContext } from "@/contexts/OrchestratorContext";
 import { PlatformConfig } from "@/types/config";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Save, AlertTriangle, CheckCircle, XCircle, RefreshCw } from "lucide-react";
+import {
+  Save,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  RefreshCw,
+  Settings2,
+  LineChart,
+  TrendingUp,
+  Clock,
+  BarChart3,
+} from "lucide-react";
 import {
   SessionTab,
-  EnvironmentTab,
   MarketTab,
   IndicatorsTab,
   StrategyTab,
   TimeMachineTab,
-  ResearchTab,
-  StorageTab,
-  ObservabilityTab,
 } from "./tabs";
+
+const TABS = [
+  { id: "session", label: "Session", icon: Settings2 },
+  { id: "market", label: "Market", icon: LineChart },
+  { id: "indicators", label: "Indicators", icon: BarChart3 },
+  { id: "strategy", label: "Strategy", icon: TrendingUp },
+  { id: "timemachine", label: "Time Machine", icon: Clock },
+];
 
 export function ConfigurationPanel() {
   const {
@@ -23,9 +44,9 @@ export function ConfigurationPanel() {
     config,
     frozenConfig,
     configUpdateResult,
+    error,
     setLocalConfig,
     updateConfig,
-    clearConfigUpdateResult,
   } = useOrchestratorContext();
 
   if (!config) {
@@ -53,26 +74,35 @@ export function ConfigurationPanel() {
     section: K,
     value: PlatformConfig[K]
   ) => {
-    setLocalConfig({ ...config, [section]: value });
+    // Update meta timestamp on any change
+    const updatedConfig = {
+      ...config,
+      [section]: value,
+      meta: {
+        ...config.meta,
+        lastModifiedAt: new Date().toISOString(),
+        lastModifiedBy: "ui",
+      },
+    };
+    setLocalConfig(updatedConfig);
   };
 
   return (
     <Card className="border-border bg-card/50">
-      <CardHeader>
-        <div className="flex items-center justify-between">
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between gap-4">
           <div>
             <CardTitle className="text-lg font-semibold text-foreground">
               Configuration
             </CardTitle>
             <CardDescription>
-              Edit platform configuration. Changes are saved to disk when you click
-              Save.
+              Platform configuration. Changes are saved when you click Save.
             </CardDescription>
           </div>
           <Button
             onClick={updateConfig}
             disabled={!isConnected}
-            className="gap-2"
+            className="gap-2 shrink-0"
           >
             <Save className="h-4 w-4" />
             Save Config
@@ -116,11 +146,23 @@ export function ConfigurationPanel() {
                   Configuration Rejected
                 </AlertTitle>
                 <AlertDescription className="text-destructive/80">
-                  {configUpdateResult.reason || "The configuration was rejected by the backend."}
+                  {configUpdateResult.reason ||
+                    "The configuration was rejected by the backend."}
                 </AlertDescription>
               </Alert>
             )}
           </div>
+        )}
+
+        {/* Backend Error */}
+        {error && !configUpdateResult && (
+          <Alert className="mt-4 border-destructive/50 bg-destructive/10">
+            <XCircle className="h-4 w-4 text-destructive" />
+            <AlertTitle className="text-destructive">Error</AlertTitle>
+            <AlertDescription className="text-destructive/80">
+              {error}
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* Frozen Config Warning */}
@@ -138,100 +180,57 @@ export function ConfigurationPanel() {
 
       <CardContent>
         <Tabs defaultValue="session" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 lg:grid-cols-9 h-auto gap-1 bg-muted/50 p-1">
-            <TabsTrigger value="session" className="text-xs">
-              Session
-            </TabsTrigger>
-            <TabsTrigger value="environment" className="text-xs">
-              Environment
-            </TabsTrigger>
-            <TabsTrigger value="market" className="text-xs">
-              Market
-            </TabsTrigger>
-            <TabsTrigger value="indicators" className="text-xs">
-              Indicators
-            </TabsTrigger>
-            <TabsTrigger value="strategy" className="text-xs">
-              Strategy
-            </TabsTrigger>
-            <TabsTrigger value="timemachine" className="text-xs">
-              Time Machine
-            </TabsTrigger>
-            <TabsTrigger value="research" className="text-xs">
-              Research
-            </TabsTrigger>
-            <TabsTrigger value="storage" className="text-xs">
-              Storage
-            </TabsTrigger>
-            <TabsTrigger value="observability" className="text-xs">
-              Observability
-            </TabsTrigger>
+          <TabsList className="grid w-full grid-cols-5 h-auto gap-1 bg-muted/50 p-1 mb-6">
+            {TABS.map((tab) => (
+              <TabsTrigger
+                key={tab.id}
+                value={tab.id}
+                className="flex items-center gap-1.5 py-2.5 text-xs sm:text-sm data-[state=active]:bg-background"
+              >
+                <tab.icon className="h-4 w-4 hidden sm:block" />
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          <div className="mt-6">
-            <TabsContent value="session">
-              <SessionTab
-                config={config.session}
-                onChange={(v) => updateSection("session", v)}
-              />
-            </TabsContent>
+          <TabsContent value="session" className="mt-0">
+            <SessionTab
+              meta={config.meta}
+              session={config.session}
+              storage={config.storage}
+              onMetaChange={(v) => updateSection("meta", v)}
+              onSessionChange={(v) => updateSection("session", v)}
+              onStorageChange={(v) => updateSection("storage", v)}
+            />
+          </TabsContent>
 
-            <TabsContent value="environment">
-              <EnvironmentTab
-                config={config.environment}
-                onChange={(v) => updateSection("environment", v)}
-              />
-            </TabsContent>
+          <TabsContent value="market" className="mt-0">
+            <MarketTab
+              config={config.market}
+              onChange={(v) => updateSection("market", v)}
+            />
+          </TabsContent>
 
-            <TabsContent value="market">
-              <MarketTab
-                config={config.market}
-                onChange={(v) => updateSection("market", v)}
-              />
-            </TabsContent>
+          <TabsContent value="indicators" className="mt-0">
+            <IndicatorsTab
+              config={config.indicators}
+              onChange={(v) => updateSection("indicators", v)}
+            />
+          </TabsContent>
 
-            <TabsContent value="indicators">
-              <IndicatorsTab
-                config={config.indicators}
-                onChange={(v) => updateSection("indicators", v)}
-              />
-            </TabsContent>
+          <TabsContent value="strategy" className="mt-0">
+            <StrategyTab
+              config={config.strategy}
+              onChange={(v) => updateSection("strategy", v)}
+            />
+          </TabsContent>
 
-            <TabsContent value="strategy">
-              <StrategyTab
-                config={config.strategy}
-                onChange={(v) => updateSection("strategy", v)}
-              />
-            </TabsContent>
-
-            <TabsContent value="timemachine">
-              <TimeMachineTab
-                config={config.timeMachine}
-                onChange={(v) => updateSection("timeMachine", v)}
-              />
-            </TabsContent>
-
-            <TabsContent value="research">
-              <ResearchTab
-                config={config.research}
-                onChange={(v) => updateSection("research", v)}
-              />
-            </TabsContent>
-
-            <TabsContent value="storage">
-              <StorageTab
-                config={config.storage}
-                onChange={(v) => updateSection("storage", v)}
-              />
-            </TabsContent>
-
-            <TabsContent value="observability">
-              <ObservabilityTab
-                config={config.observability}
-                onChange={(v) => updateSection("observability", v)}
-              />
-            </TabsContent>
-          </div>
+          <TabsContent value="timemachine" className="mt-0">
+            <TimeMachineTab
+              config={config.timeMachine}
+              onChange={(v) => updateSection("timeMachine", v)}
+            />
+          </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
