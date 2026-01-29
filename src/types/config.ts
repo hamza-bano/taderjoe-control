@@ -9,54 +9,29 @@
 // ========================================
 
 export interface MetaConfig {
-  version: string;
-  lastModified: string;
+  configVersion: string;
+  description: string;
+  lastModifiedBy: string;
+  lastModifiedAt: string;
 }
 
 // ========================================
 // SESSION CONFIG
 // ========================================
 
-export type SessionMode = "live" | "historic";
-
-export interface SessionLifecycle {
-  autoStart: boolean;
-  autoStopOnHistoricEnd: boolean;
-  gracefulShutdownTimeoutSeconds: number;
-}
+export type SessionMode = "trading" | "time-machine" | "research";
 
 export interface SessionConfig {
-  mode: SessionMode;
-  allowHotEdits: boolean;
-  singleActiveSession: boolean;
-  lifecycle: SessionLifecycle;
-}
-
-// ========================================
-// ENVIRONMENT CONFIG
-// ========================================
-
-export type EnvironmentType = "live" | "historic";
-
-export interface EnvironmentConstraints {
-  allowOrderbook: boolean;
-  allowTrades: boolean;
-}
-
-export interface EnvironmentConfig {
-  type: EnvironmentType;
-  timezone: string;
-  constraints: {
-    live: EnvironmentConstraints;
-    historic: EnvironmentConstraints;
-  };
+  sessionMode: SessionMode;
 }
 
 // ========================================
 // MARKET CONFIG
 // ========================================
 
-export type KlineInterval = "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
+export type MarketMode = "live" | "historic";
+export type KlineInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d" | "3d" | "1w" | "1M";
+export type Exchange = "binance" | "bybit" | "okx" | "coinbase";
 
 export interface OrderbookStream {
   enabled: boolean;
@@ -69,159 +44,35 @@ export interface LiveStreams {
   orderbook: OrderbookStream;
 }
 
-export interface LiveConnection {
-  websocket: boolean;
-  restFallback: boolean;
-}
-
-export interface LiveDataSource {
-  exchange: string;
-  connection: LiveConnection;
+export interface LiveMarketConfig {
   streams: LiveStreams;
 }
 
-export interface HistoricKlines {
-  startTime: string; // ISO8601
-  endTime: string; // ISO8601
-  paginationLimit: number;
+export interface HistoricMarketConfig {
+  startTime: string;
+  endTime: string;
   respectRateLimits: boolean;
-}
-
-export interface HistoricDataSource {
-  exchange: string;
-  klines: HistoricKlines;
-}
-
-export interface DataSourceConfig {
-  live: LiveDataSource;
-  historic: HistoricDataSource;
-}
-
-export interface MarketIntervals {
-  primary: KlineInterval;
-  additional: KlineInterval[];
+  paginationLimit: number;
 }
 
 export interface MarketConfig {
+  mode: MarketMode;
+  exchange: Exchange;
   symbols: string[];
-  intervals: MarketIntervals;
-  dataSource: DataSourceConfig;
-}
-
-// ========================================
-// INDICATORS CONFIG
-// ========================================
-
-export type IndicatorEmitOn = "KLINE_CLOSE" | "KLINE_OPEN";
-
-export interface IndicatorEntry {
-  name: string;
-  parameters: Record<string, unknown>;
-}
-
-export interface IndicatorsConfig {
-  emitOn: IndicatorEmitOn;
-  defaultRollingWindow: number;
-  enabled: IndicatorEntry[];
-}
-
-// ========================================
-// STRATEGY CONFIG
-// ========================================
-
-export type StrategyMode = "paper" | "live";
-export type PositionSizingMethod = "fixed" | "atr" | "percent";
-
-export interface CapitalConfig {
-  initialUSD: number;
-  riskPerTradePercent: number;
-  maxConcurrentPositions: number;
-}
-
-export interface PositionSizing {
-  method: PositionSizingMethod;
-  stopLossATRMultiplier: number;
-}
-
-export interface StrategyRules {
-  entry: string[];
-  exit: string[];
-}
-
-export interface SnapshotWindow {
-  before: number;
-  after: number;
-}
-
-export interface StrategyLogging {
-  logIndicatorSnapshots: boolean;
-  snapshotWindow: SnapshotWindow;
-}
-
-export interface StrategyConfig {
-  enabled: boolean;
-  mode: StrategyMode;
-  strategyId: string;
-  capital: CapitalConfig;
-  positionSizing: PositionSizing;
-  rules: StrategyRules;
-  logging: StrategyLogging;
-}
-
-// ========================================
-// TIME MACHINE CONFIG
-// ========================================
-
-export type TriggerType = "price_change" | "indicator_cross" | "custom";
-export type TriggerDirection = "up" | "down" | "both";
-
-export interface TimeMachineTrigger {
-  id: string;
-  type: TriggerType;
-  lookbackCandles: number;
-  thresholdPercent: number;
-  direction: TriggerDirection;
-}
-
-export interface TimeMachinePersistence {
-  storeResults: boolean;
-  storeIncompleteTriggers: boolean;
-}
-
-export interface TimeMachineConfig {
-  enabled: boolean;
-  triggers: TimeMachineTrigger[];
-  snapshotWindow: SnapshotWindow;
-  persistence: TimeMachinePersistence;
-}
-
-// ========================================
-// RESEARCH CONFIG
-// ========================================
-
-export interface ResearchConfig {
-  enabled: boolean;
-  featureBucketing: Record<string, number[]>;
-  minimumSampleSize: number;
-  calculateLift: boolean;
-  storeDerivedRules: boolean;
+  interval: KlineInterval;
+  secondaryInterval: KlineInterval;
+  live: LiveMarketConfig;
+  historic: HistoricMarketConfig;
 }
 
 // ========================================
 // STORAGE CONFIG
 // ========================================
 
-export interface RedisRoles {
-  eventBus: boolean;
-  hotState: boolean;
-  sessionLogs: boolean;
-}
-
 export interface RedisConfig {
   enabled: boolean;
   namespacePrefix: string;
   purgeOnSessionStart: boolean;
-  roles: RedisRoles;
 }
 
 export interface StorageConfig {
@@ -229,12 +80,120 @@ export interface StorageConfig {
 }
 
 // ========================================
+// INDICATORS CONFIG
+// ========================================
+
+export interface IndicatorsEnabled {
+  // EMAs
+  EMA_9: boolean;
+  EMA_21: boolean;
+  EMA_50: boolean;
+  EMA_200: boolean;
+  // SMAs
+  SMA_20: boolean;
+  // VWAP
+  VWAP: boolean;
+  // Oscillators
+  RSI_14: boolean;
+  MACD_12_26_9: boolean;
+  ROC_14: boolean;
+  // Volatility
+  ATR_14: boolean;
+  BB_20_2: boolean;
+  BB_WIDTH_20_2: boolean;
+  KELTNER_20_1_5: boolean;
+  DONCHIAN_20: boolean;
+  Z_SCORE_50: boolean;
+  // Volume
+  VOLUME_MA_20: boolean;
+  OBV: boolean;
+  VOLUME_DELTA: boolean;
+  // Price Change
+  PRICE_CHANGE_1: boolean;
+  PRICE_CHANGE_5: boolean;
+  PRICE_CHANGE_10: boolean;
+  PRICE_CHANGE_20: boolean;
+  // Candle Patterns
+  CANDLE_BODY_PCT: boolean;
+  CANDLE_WICK_UP_PCT: boolean;
+  CANDLE_WICK_DOWN_PCT: boolean;
+  // Regime
+  VOLATILITY_REGIME_100: boolean;
+}
+
+export interface IndicatorsConfig {
+  enabled: IndicatorsEnabled;
+}
+
+// ========================================
+// STRATEGY CONFIG
+// ========================================
+
+export type StrategyMode = "paper" | "live";
+export type PositionSizingMethod = "risk_based" | "absolute";
+export type RiskMethod = "pct_based" | "atr_based";
+export type ConditionLogic = "AND" | "OR";
+
+export interface CapitalConfig {
+  initialUSD: number;
+  riskPerTradePct: number;
+  maxOpenPositions: number;
+}
+
+export interface ConditionBlock {
+  logic: ConditionLogic;
+  conditions: string[];
+}
+
+export interface PositionSizing {
+  method: PositionSizingMethod;
+  absoluteValue: string;
+}
+
+export interface RiskConfig {
+  method: RiskMethod;
+  stopLoss: string;
+  takeProfit: string;
+}
+
+export interface StrategyConfig {
+  enabled: boolean;
+  mode: StrategyMode;
+  capital: CapitalConfig;
+  entry: ConditionBlock;
+  exit: ConditionBlock;
+  positionSizing: PositionSizing;
+  risk: RiskConfig;
+}
+
+// ========================================
+// TIME MACHINE CONFIG
+// ========================================
+
+export interface TimeMachineTrigger {
+  id: string;
+  condition: string;
+  lookBackCandles: number;
+}
+
+export interface SnapshotWindow {
+  before: number;
+  after: number;
+}
+
+export interface TimeMachineConfig {
+  saveData: boolean;
+  triggers: TimeMachineTrigger[];
+  snapshotWindow: SnapshotWindow;
+}
+
+// ========================================
 // ORCHESTRATOR CONFIG
 // ========================================
 
 export interface OrchestratorConfig {
-  heartbeatIntervalMs: number;
-  serviceStartupTimeoutMs: number;
+  requiresRestart: string[];
+  hotEditable: string[];
 }
 
 // ========================================
@@ -244,8 +203,7 @@ export interface OrchestratorConfig {
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
 export interface ObservabilityConfig {
-  emitHealthEvents: boolean;
-  trackLagMetrics: boolean;
+  emitHealth: boolean;
   logLevel: LogLevel;
 }
 
@@ -256,13 +214,11 @@ export interface ObservabilityConfig {
 export interface PlatformConfig {
   meta: MetaConfig;
   session: SessionConfig;
-  environment: EnvironmentConfig;
   market: MarketConfig;
   storage: StorageConfig;
   indicators: IndicatorsConfig;
   strategy: StrategyConfig;
   timeMachine: TimeMachineConfig;
-  research: ResearchConfig;
   orchestrator: OrchestratorConfig;
   observability: ObservabilityConfig;
 }
@@ -283,111 +239,179 @@ export interface ConfigUpdateResult {
 // DEFAULT CONFIG (for initialization)
 // ========================================
 
+export const DEFAULT_INDICATORS_ENABLED: IndicatorsEnabled = {
+  EMA_9: true,
+  EMA_21: true,
+  EMA_50: true,
+  EMA_200: true,
+  SMA_20: true,
+  VWAP: true,
+  RSI_14: true,
+  MACD_12_26_9: true,
+  ROC_14: true,
+  ATR_14: true,
+  BB_20_2: true,
+  BB_WIDTH_20_2: true,
+  KELTNER_20_1_5: true,
+  DONCHIAN_20: true,
+  Z_SCORE_50: true,
+  VOLUME_MA_20: true,
+  OBV: true,
+  VOLUME_DELTA: false,
+  PRICE_CHANGE_1: true,
+  PRICE_CHANGE_5: true,
+  PRICE_CHANGE_10: true,
+  PRICE_CHANGE_20: true,
+  CANDLE_BODY_PCT: true,
+  CANDLE_WICK_UP_PCT: true,
+  CANDLE_WICK_DOWN_PCT: true,
+  VOLATILITY_REGIME_100: true,
+};
+
 export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
   meta: {
-    version: "1.0.0",
-    lastModified: new Date().toISOString(),
+    configVersion: "2.0.0",
+    description: "Canonical config for crypto research & execution platform",
+    lastModifiedBy: "ui",
+    lastModifiedAt: new Date().toISOString(),
   },
   session: {
-    mode: "live",
-    allowHotEdits: false,
-    singleActiveSession: true,
-    lifecycle: {
-      autoStart: false,
-      autoStopOnHistoricEnd: true,
-      gracefulShutdownTimeoutSeconds: 30,
-    },
-  },
-  environment: {
-    type: "live",
-    timezone: "UTC",
-    constraints: {
-      live: { allowOrderbook: true, allowTrades: true },
-      historic: { allowOrderbook: false, allowTrades: false },
-    },
+    sessionMode: "trading",
   },
   market: {
-    symbols: ["BTCUSDT"],
-    intervals: {
-      primary: "1h",
-      additional: [],
+    mode: "live",
+    exchange: "binance",
+    symbols: ["BTCUSDT", "ETHUSDT"],
+    interval: "5m",
+    secondaryInterval: "1m",
+    live: {
+      streams: {
+        klines: true,
+        trades: true,
+        orderbook: { enabled: true, depth: 200 },
+      },
     },
-    dataSource: {
-      live: {
-        exchange: "binance",
-        connection: { websocket: true, restFallback: true },
-        streams: {
-          klines: true,
-          trades: false,
-          orderbook: { enabled: false, depth: 10 },
-        },
-      },
-      historic: {
-        exchange: "binance",
-        klines: {
-          startTime: "",
-          endTime: "",
-          paginationLimit: 1000,
-          respectRateLimits: true,
-        },
-      },
+    historic: {
+      startTime: "2024-01-01T00:00:00Z",
+      endTime: "2024-03-01T00:00:00Z",
+      respectRateLimits: true,
+      paginationLimit: 1000,
     },
   },
   storage: {
     redis: {
       enabled: true,
       namespacePrefix: "taderjoe",
-      purgeOnSessionStart: false,
-      roles: { eventBus: true, hotState: true, sessionLogs: true },
+      purgeOnSessionStart: true,
     },
   },
   indicators: {
-    emitOn: "KLINE_CLOSE",
-    defaultRollingWindow: 100,
-    enabled: [],
+    enabled: DEFAULT_INDICATORS_ENABLED,
   },
   strategy: {
-    enabled: false,
+    enabled: true,
     mode: "paper",
-    strategyId: "",
     capital: {
       initialUSD: 10000,
-      riskPerTradePercent: 1,
-      maxConcurrentPositions: 3,
+      riskPerTradePct: 1,
+      maxOpenPositions: 1,
+    },
+    entry: {
+      logic: "AND",
+      conditions: [
+        "EMA_21 > EMA_50",
+        "RSI_14 >= 45",
+        "RSI_14 <= 60",
+        "BB_WIDTH_20_2 < BB_WIDTH_20_2[-20]",
+      ],
+    },
+    exit: {
+      logic: "OR",
+      conditions: ["RSI_14 > 70", "PRICE_CHANGE_5 < -0.5"],
     },
     positionSizing: {
-      method: "percent",
-      stopLossATRMultiplier: 2,
+      method: "risk_based",
+      absoluteValue: "200",
     },
-    rules: {
-      entry: [],
-      exit: [],
-    },
-    logging: {
-      logIndicatorSnapshots: false,
-      snapshotWindow: { before: 5, after: 5 },
+    risk: {
+      method: "pct_based",
+      stopLoss: "1.0",
+      takeProfit: "2.0",
     },
   },
   timeMachine: {
-    enabled: false,
-    triggers: [],
-    snapshotWindow: { before: 10, after: 10 },
-    persistence: { storeResults: true, storeIncompleteTriggers: false },
-  },
-  research: {
-    enabled: false,
-    featureBucketing: {},
-    minimumSampleSize: 30,
-    calculateLift: true,
-    storeDerivedRules: false,
+    saveData: true,
+    triggers: [
+      {
+        id: "short_term_burst",
+        condition: "PRICE_CHANGE_10 >= 1.0",
+        lookBackCandles: 10,
+      },
+      {
+        id: "daily_breakout",
+        condition: "PRICE_CHANGE_288 >= 10.0",
+        lookBackCandles: 100,
+      },
+    ],
+    snapshotWindow: {
+      before: 12,
+      after: 5,
+    },
   },
   orchestrator: {
-    heartbeatIntervalMs: 5000,
-    serviceStartupTimeoutMs: 30000,
+    requiresRestart: [
+      "market.mode",
+      "market.symbols",
+      "market.interval",
+      "indicators.enabled",
+    ],
+    hotEditable: ["strategy", "timeMachine"],
   },
   observability: {
-    emitHealthEvents: true,
-    trackLagMetrics: true,
+    emitHealth: true,
     logLevel: "info",
   },
+};
+
+// ========================================
+// INDICATOR CATEGORIES (for UI grouping)
+// ========================================
+
+export const INDICATOR_CATEGORIES = {
+  "Moving Averages": ["EMA_9", "EMA_21", "EMA_50", "EMA_200", "SMA_20", "VWAP"],
+  "Oscillators": ["RSI_14", "MACD_12_26_9", "ROC_14"],
+  "Volatility": ["ATR_14", "BB_20_2", "BB_WIDTH_20_2", "KELTNER_20_1_5", "DONCHIAN_20", "Z_SCORE_50"],
+  "Volume": ["VOLUME_MA_20", "OBV", "VOLUME_DELTA"],
+  "Price Change": ["PRICE_CHANGE_1", "PRICE_CHANGE_5", "PRICE_CHANGE_10", "PRICE_CHANGE_20"],
+  "Candle Analysis": ["CANDLE_BODY_PCT", "CANDLE_WICK_UP_PCT", "CANDLE_WICK_DOWN_PCT"],
+  "Regime": ["VOLATILITY_REGIME_100"],
+} as const;
+
+export const INDICATOR_LABELS: Record<string, string> = {
+  EMA_9: "EMA 9",
+  EMA_21: "EMA 21",
+  EMA_50: "EMA 50",
+  EMA_200: "EMA 200",
+  SMA_20: "SMA 20",
+  VWAP: "VWAP",
+  RSI_14: "RSI 14",
+  MACD_12_26_9: "MACD (12,26,9)",
+  ROC_14: "ROC 14",
+  ATR_14: "ATR 14",
+  BB_20_2: "Bollinger Bands (20,2)",
+  BB_WIDTH_20_2: "BB Width (20,2)",
+  KELTNER_20_1_5: "Keltner Channel (20,1.5)",
+  DONCHIAN_20: "Donchian 20",
+  Z_SCORE_50: "Z-Score 50",
+  VOLUME_MA_20: "Volume MA 20",
+  OBV: "On-Balance Volume",
+  VOLUME_DELTA: "Volume Delta",
+  PRICE_CHANGE_1: "Price Change 1",
+  PRICE_CHANGE_5: "Price Change 5",
+  PRICE_CHANGE_10: "Price Change 10",
+  PRICE_CHANGE_20: "Price Change 20",
+  CANDLE_BODY_PCT: "Candle Body %",
+  CANDLE_WICK_UP_PCT: "Upper Wick %",
+  CANDLE_WICK_DOWN_PCT: "Lower Wick %",
+  VOLATILITY_REGIME_100: "Volatility Regime 100",
 };

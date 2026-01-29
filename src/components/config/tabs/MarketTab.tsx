@@ -1,6 +1,10 @@
-import { MarketConfig, KlineInterval } from "@/types/config";
-import { FormField, TagInput, MultiSelect } from "../shared";
-import { Input } from "@/components/ui/input";
+import {
+  MarketConfig,
+  MarketMode,
+  KlineInterval,
+  Exchange,
+} from "@/types/config";
+import { FormField, TagInput, NumberInput } from "../shared";
 import { Switch } from "@/components/ui/switch";
 import {
   Select,
@@ -9,319 +13,343 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface MarketTabProps {
   config: MarketConfig;
   onChange: (config: MarketConfig) => void;
 }
 
-const INTERVALS: KlineInterval[] = ["1m", "5m", "15m", "1h", "4h", "1d"];
-const EXCHANGES = ["binance", "bybit", "okx", "coinbase"];
+const EXCHANGES: { value: Exchange; label: string }[] = [
+  { value: "binance", label: "Binance" },
+  { value: "bybit", label: "Bybit" },
+  { value: "okx", label: "OKX" },
+  { value: "coinbase", label: "Coinbase" },
+];
+
+const INTERVALS: { value: KlineInterval; label: string }[] = [
+  { value: "1m", label: "1 minute" },
+  { value: "3m", label: "3 minutes" },
+  { value: "5m", label: "5 minutes" },
+  { value: "15m", label: "15 minutes" },
+  { value: "30m", label: "30 minutes" },
+  { value: "1h", label: "1 hour" },
+  { value: "2h", label: "2 hours" },
+  { value: "4h", label: "4 hours" },
+  { value: "6h", label: "6 hours" },
+  { value: "8h", label: "8 hours" },
+  { value: "12h", label: "12 hours" },
+  { value: "1d", label: "1 day" },
+  { value: "3d", label: "3 days" },
+  { value: "1w", label: "1 week" },
+  { value: "1M", label: "1 month" },
+];
 
 export function MarketTab({ config, onChange }: MarketTabProps) {
-  const updateSymbols = (symbols: string[]) => {
-    onChange({ ...config, symbols });
-  };
+  const isLive = config.mode === "live";
+  const isHistoric = config.mode === "historic";
 
-  const updatePrimaryInterval = (interval: KlineInterval) => {
-    onChange({
-      ...config,
-      intervals: { ...config.intervals, primary: interval },
-    });
-  };
-
-  const updateAdditionalIntervals = (intervals: KlineInterval[]) => {
-    onChange({
-      ...config,
-      intervals: { ...config.intervals, additional: intervals },
-    });
-  };
-
-  const updateLiveDataSource = (
-    updates: Partial<MarketConfig["dataSource"]["live"]>
+  const updateLiveStreams = (
+    key: keyof MarketConfig["live"]["streams"],
+    value: boolean | { enabled: boolean; depth: number }
   ) => {
     onChange({
       ...config,
-      dataSource: {
-        ...config.dataSource,
-        live: { ...config.dataSource.live, ...updates },
+      live: {
+        ...config.live,
+        streams: { ...config.live.streams, [key]: value },
       },
     });
   };
 
-  const updateHistoricDataSource = (
-    updates: Partial<MarketConfig["dataSource"]["historic"]>
+  const updateHistoric = <K extends keyof MarketConfig["historic"]>(
+    key: K,
+    value: MarketConfig["historic"][K]
   ) => {
     onChange({
       ...config,
-      dataSource: {
-        ...config.dataSource,
-        historic: { ...config.dataSource.historic, ...updates },
-      },
+      historic: { ...config.historic, [key]: value },
     });
+  };
+
+  const parseDate = (dateStr: string): Date | undefined => {
+    if (!dateStr) return undefined;
+    const d = new Date(dateStr);
+    return isNaN(d.getTime()) ? undefined : d;
   };
 
   return (
-    <div className="space-y-6">
-      {/* Symbols and Intervals */}
-      <div className="grid gap-6 md:grid-cols-2">
-        <FormField
-          label="Symbols"
-          description="Trading pairs (uppercase, e.g., BTCUSDT)"
-          className="md:col-span-2"
-        >
-          <TagInput
-            value={config.symbols}
-            onChange={updateSymbols}
-            placeholder="Add symbol and press Enter"
-            uppercase
-          />
-        </FormField>
-
-        <FormField label="Primary Interval" description="Main candle interval">
-          <Select
-            value={config.intervals.primary}
-            onValueChange={(v) => updatePrimaryInterval(v as KlineInterval)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {INTERVALS.map((i) => (
-                <SelectItem key={i} value={i}>
-                  {i}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FormField>
-
-        <FormField label="Additional Intervals" description="Secondary intervals">
-          <MultiSelect
-            options={INTERVALS.filter((i) => i !== config.intervals.primary)}
-            value={config.intervals.additional}
-            onChange={updateAdditionalIntervals}
-            placeholder="Select intervals..."
-          />
-        </FormField>
-      </div>
-
-      {/* Live Data Source */}
-      <div className="border-t border-border pt-6">
-        <h4 className="text-sm font-semibold text-foreground mb-4">
-          Live Data Source
-        </h4>
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField label="Exchange" description="Live data provider">
+    <div className="space-y-8">
+      {/* Core Market Settings */}
+      <section>
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-primary" />
+          Market Configuration
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <FormField label="Mode" description="Live streaming or historical data">
             <Select
-              value={config.dataSource.live.exchange}
-              onValueChange={(v) => updateLiveDataSource({ exchange: v })}
+              value={config.mode}
+              onValueChange={(v) =>
+                onChange({ ...config, mode: v as MarketMode })
+              }
             >
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {EXCHANGES.map((e) => (
-                  <SelectItem key={e} value={e}>
-                    {e}
+                <SelectItem value="live">Live</SelectItem>
+                <SelectItem value="historic">Historic</SelectItem>
+              </SelectContent>
+            </Select>
+          </FormField>
+
+          <FormField label="Exchange" description="Data source exchange">
+            <Select
+              value={config.exchange}
+              onValueChange={(v) =>
+                onChange({ ...config, exchange: v as Exchange })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {EXCHANGES.map((ex) => (
+                  <SelectItem key={ex.value} value={ex.value}>
+                    {ex.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </FormField>
 
-          <FormField label="WebSocket" description="Use WebSocket connection">
-            <Switch
-              checked={config.dataSource.live.connection.websocket}
-              onCheckedChange={(v) =>
-                updateLiveDataSource({
-                  connection: { ...config.dataSource.live.connection, websocket: v },
-                })
+          <FormField
+            label="Primary Interval"
+            description="Main candle timeframe"
+          >
+            <Select
+              value={config.interval}
+              onValueChange={(v) =>
+                onChange({ ...config, interval: v as KlineInterval })
               }
-            />
-          </FormField>
-
-          <FormField label="REST Fallback" description="Fallback to REST API">
-            <Switch
-              checked={config.dataSource.live.connection.restFallback}
-              onCheckedChange={(v) =>
-                updateLiveDataSource({
-                  connection: {
-                    ...config.dataSource.live.connection,
-                    restFallback: v,
-                  },
-                })
-              }
-            />
-          </FormField>
-
-          <FormField label="Klines Stream" description="Subscribe to klines">
-            <Switch
-              checked={config.dataSource.live.streams.klines}
-              onCheckedChange={(v) =>
-                updateLiveDataSource({
-                  streams: { ...config.dataSource.live.streams, klines: v },
-                })
-              }
-            />
-          </FormField>
-
-          <FormField label="Trades Stream" description="Subscribe to trades">
-            <Switch
-              checked={config.dataSource.live.streams.trades}
-              onCheckedChange={(v) =>
-                updateLiveDataSource({
-                  streams: { ...config.dataSource.live.streams, trades: v },
-                })
-              }
-            />
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {INTERVALS.map((int) => (
+                  <SelectItem key={int.value} value={int.value}>
+                    {int.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </FormField>
 
           <FormField
-            label="Orderbook Stream"
-            description="Subscribe to orderbook updates"
+            label="Secondary Interval"
+            description="Additional timeframe for analysis"
           >
-            <Switch
-              checked={config.dataSource.live.streams.orderbook.enabled}
-              onCheckedChange={(v) =>
-                updateLiveDataSource({
-                  streams: {
-                    ...config.dataSource.live.streams,
-                    orderbook: {
-                      ...config.dataSource.live.streams.orderbook,
-                      enabled: v,
-                    },
-                  },
-                })
+            <Select
+              value={config.secondaryInterval}
+              onValueChange={(v) =>
+                onChange({ ...config, secondaryInterval: v as KlineInterval })
               }
-            />
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {INTERVALS.map((int) => (
+                  <SelectItem key={int.value} value={int.value}>
+                    {int.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </FormField>
 
-          {config.dataSource.live.streams.orderbook.enabled && (
-            <FormField label="Orderbook Depth" description="Number of levels">
-              <Input
-                type="number"
-                min={1}
-                max={100}
-                value={config.dataSource.live.streams.orderbook.depth}
-                onChange={(e) =>
-                  updateLiveDataSource({
-                    streams: {
-                      ...config.dataSource.live.streams,
-                      orderbook: {
-                        ...config.dataSource.live.streams.orderbook,
-                        depth: parseInt(e.target.value) || 10,
-                      },
-                    },
+          <FormField
+            label="Symbols"
+            description="Trading pairs (uppercase)"
+            className="sm:col-span-2"
+          >
+            <TagInput
+              value={config.symbols}
+              onChange={(symbols) => onChange({ ...config, symbols })}
+              placeholder="Add symbol (e.g., BTCUSDT)"
+              uppercase
+            />
+          </FormField>
+        </div>
+      </section>
+
+      <Separator />
+
+      {/* Live-specific settings */}
+      {isLive && (
+        <section>
+          <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-green-500" />
+            Live Streams
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <FormField label="Klines" description="Subscribe to candlestick data">
+              <Switch
+                checked={config.live.streams.klines}
+                onCheckedChange={(v) => updateLiveStreams("klines", v)}
+              />
+            </FormField>
+
+            <FormField label="Trades" description="Subscribe to trade stream">
+              <Switch
+                checked={config.live.streams.trades}
+                onCheckedChange={(v) => updateLiveStreams("trades", v)}
+              />
+            </FormField>
+
+            <FormField
+              label="Orderbook"
+              description="Subscribe to orderbook updates"
+            >
+              <Switch
+                checked={config.live.streams.orderbook.enabled}
+                onCheckedChange={(v) =>
+                  updateLiveStreams("orderbook", {
+                    ...config.live.streams.orderbook,
+                    enabled: v,
                   })
                 }
               />
             </FormField>
-          )}
-        </div>
-      </div>
 
-      {/* Historic Data Source */}
-      <div className="border-t border-border pt-6">
-        <h4 className="text-sm font-semibold text-foreground mb-4">
-          Historic Data Source
-        </h4>
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField label="Exchange" description="Historic data provider">
-            <Select
-              value={config.dataSource.historic.exchange}
-              onValueChange={(v) => updateHistoricDataSource({ exchange: v })}
+            <FormField
+              label="Orderbook Depth"
+              description="Number of price levels"
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {EXCHANGES.map((e) => (
-                  <SelectItem key={e} value={e}>
-                    {e}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
+              <NumberInput
+                value={config.live.streams.orderbook.depth}
+                onChange={(v) =>
+                  updateLiveStreams("orderbook", {
+                    ...config.live.streams.orderbook,
+                    depth: v,
+                  })
+                }
+                min={0}
+                max={5000}
+                disabled={!config.live.streams.orderbook.enabled}
+              />
+            </FormField>
+          </div>
+        </section>
+      )}
 
-          <FormField label="Start Time" description="Historic data start (ISO 8601)">
-            <Input
-              type="datetime-local"
-              value={
-                config.dataSource.historic.klines.startTime
-                  ? config.dataSource.historic.klines.startTime.slice(0, 16)
-                  : ""
-              }
-              onChange={(e) =>
-                updateHistoricDataSource({
-                  klines: {
-                    ...config.dataSource.historic.klines,
-                    startTime: e.target.value
-                      ? new Date(e.target.value).toISOString()
-                      : "",
-                  },
-                })
-              }
-            />
-          </FormField>
+      {/* Historic-specific settings */}
+      {isHistoric && (
+        <section>
+          <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            Historical Data Range
+          </h3>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <FormField label="Start Time" description="Begin date for backtest">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !config.historic.startTime && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {config.historic.startTime
+                      ? format(new Date(config.historic.startTime), "PPP")
+                      : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={parseDate(config.historic.startTime)}
+                    onSelect={(date) =>
+                      updateHistoric(
+                        "startTime",
+                        date ? date.toISOString() : ""
+                      )
+                    }
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </FormField>
 
-          <FormField label="End Time" description="Historic data end (ISO 8601)">
-            <Input
-              type="datetime-local"
-              value={
-                config.dataSource.historic.klines.endTime
-                  ? config.dataSource.historic.klines.endTime.slice(0, 16)
-                  : ""
-              }
-              onChange={(e) =>
-                updateHistoricDataSource({
-                  klines: {
-                    ...config.dataSource.historic.klines,
-                    endTime: e.target.value
-                      ? new Date(e.target.value).toISOString()
-                      : "",
-                  },
-                })
-              }
-            />
-          </FormField>
+            <FormField label="End Time" description="End date for backtest">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !config.historic.endTime && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {config.historic.endTime
+                      ? format(new Date(config.historic.endTime), "PPP")
+                      : "Pick a date"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={parseDate(config.historic.endTime)}
+                    onSelect={(date) =>
+                      updateHistoric("endTime", date ? date.toISOString() : "")
+                    }
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+            </FormField>
 
-          <FormField label="Pagination Limit" description="Klines per request">
-            <Input
-              type="number"
-              min={100}
-              max={5000}
-              value={config.dataSource.historic.klines.paginationLimit}
-              onChange={(e) =>
-                updateHistoricDataSource({
-                  klines: {
-                    ...config.dataSource.historic.klines,
-                    paginationLimit: parseInt(e.target.value) || 1000,
-                  },
-                })
-              }
-            />
-          </FormField>
+            <FormField
+              label="Pagination Limit"
+              description="API results per request"
+            >
+              <NumberInput
+                value={config.historic.paginationLimit}
+                onChange={(v) => updateHistoric("paginationLimit", v)}
+                min={0}
+                max={5000}
+              />
+            </FormField>
 
-          <FormField
-            label="Respect Rate Limits"
-            description="Honor exchange rate limits"
-          >
-            <Switch
-              checked={config.dataSource.historic.klines.respectRateLimits}
-              onCheckedChange={(v) =>
-                updateHistoricDataSource({
-                  klines: {
-                    ...config.dataSource.historic.klines,
-                    respectRateLimits: v,
-                  },
-                })
-              }
-            />
-          </FormField>
-        </div>
-      </div>
+            <FormField
+              label="Respect Rate Limits"
+              description="Throttle API requests"
+            >
+              <Switch
+                checked={config.historic.respectRateLimits}
+                onCheckedChange={(v) => updateHistoric("respectRateLimits", v)}
+              />
+            </FormField>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

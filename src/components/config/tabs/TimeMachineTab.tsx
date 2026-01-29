@@ -1,22 +1,16 @@
 import { TimeMachineConfig, TimeMachineTrigger } from "@/types/config";
-import { FormField } from "../shared";
+import { FormField, NumberInput } from "../shared";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Trash2, Clock } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+  Card,
+  CardContent,
+  CardHeader,
+} from "@/components/ui/card";
 
 interface TimeMachineTabProps {
   config: TimeMachineConfig;
@@ -24,270 +18,192 @@ interface TimeMachineTabProps {
 }
 
 export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
-  const updateField = <K extends keyof TimeMachineConfig>(
+  const updateSnapshotWindow = <K extends keyof TimeMachineConfig["snapshotWindow"]>(
     key: K,
-    value: TimeMachineConfig[K]
+    value: TimeMachineConfig["snapshotWindow"][K]
   ) => {
-    onChange({ ...config, [key]: value });
+    onChange({
+      ...config,
+      snapshotWindow: { ...config.snapshotWindow, [key]: value },
+    });
   };
 
   const addTrigger = () => {
     const newTrigger: TimeMachineTrigger = {
-      id: `trigger-${Date.now()}`,
-      type: "price_change",
-      lookbackCandles: 10,
-      thresholdPercent: 5,
-      direction: "both",
+      id: `trigger_${Date.now()}`,
+      condition: "",
+      lookBackCandles: 10,
     };
-    updateField("triggers", [...config.triggers, newTrigger]);
+    onChange({
+      ...config,
+      triggers: [...config.triggers, newTrigger],
+    });
   };
 
   const removeTrigger = (index: number) => {
-    const newTriggers = [...config.triggers];
-    newTriggers.splice(index, 1);
-    updateField("triggers", newTriggers);
+    const updated = [...config.triggers];
+    updated.splice(index, 1);
+    onChange({ ...config, triggers: updated });
   };
 
   const updateTrigger = (index: number, trigger: TimeMachineTrigger) => {
-    const newTriggers = [...config.triggers];
-    newTriggers[index] = trigger;
-    updateField("triggers", newTriggers);
+    const updated = [...config.triggers];
+    updated[index] = trigger;
+    onChange({ ...config, triggers: updated });
   };
 
   return (
-    <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-2">
-        <FormField label="Time Machine Enabled" description="Enable time machine analysis">
-          <Switch
-            checked={config.enabled}
-            onCheckedChange={(v) => updateField("enabled", v)}
-          />
-        </FormField>
-
-        <FormField
-          label="Snapshot Window Before"
-          description="Candles to capture before trigger"
-        >
-          <Input
-            type="number"
-            min={1}
-            max={100}
-            value={config.snapshotWindow.before}
-            onChange={(e) =>
-              updateField("snapshotWindow", {
-                ...config.snapshotWindow,
-                before: parseInt(e.target.value) || 10,
-              })
-            }
-          />
-        </FormField>
-
-        <FormField
-          label="Snapshot Window After"
-          description="Candles to capture after trigger"
-        >
-          <Input
-            type="number"
-            min={1}
-            max={100}
-            value={config.snapshotWindow.after}
-            onChange={(e) =>
-              updateField("snapshotWindow", {
-                ...config.snapshotWindow,
-                after: parseInt(e.target.value) || 10,
-              })
-            }
-          />
-        </FormField>
-      </div>
-
-      <div className="border-t border-border pt-6">
-        <h4 className="text-sm font-semibold text-foreground mb-4">Persistence</h4>
-        <div className="grid gap-6 md:grid-cols-2">
-          <FormField label="Store Results" description="Persist trigger results">
+    <div className="space-y-8">
+      {/* Settings */}
+      <section>
+        <h3 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-primary" />
+          Time Machine Settings
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <FormField label="Save Data" description="Persist time machine results">
             <Switch
-              checked={config.persistence.storeResults}
-              onCheckedChange={(v) =>
-                updateField("persistence", {
-                  ...config.persistence,
-                  storeResults: v,
-                })
-              }
+              checked={config.saveData}
+              onCheckedChange={(v) => onChange({ ...config, saveData: v })}
             />
           </FormField>
 
           <FormField
-            label="Store Incomplete Triggers"
-            description="Store triggers without full data"
+            label="Snapshot Before (candles)"
+            description="Candles to capture before trigger"
           >
-            <Switch
-              checked={config.persistence.storeIncompleteTriggers}
-              onCheckedChange={(v) =>
-                updateField("persistence", {
-                  ...config.persistence,
-                  storeIncompleteTriggers: v,
-                })
-              }
+            <NumberInput
+              value={config.snapshotWindow.before}
+              onChange={(v) => updateSnapshotWindow("before", v)}
+              min={0}
+              max={500}
+            />
+          </FormField>
+
+          <FormField
+            label="Snapshot After (candles)"
+            description="Candles to capture after trigger"
+          >
+            <NumberInput
+              value={config.snapshotWindow.after}
+              onChange={(v) => updateSnapshotWindow("after", v)}
+              min={0}
+              max={500}
             />
           </FormField>
         </div>
-      </div>
+      </section>
 
-      <div className="border-t border-border pt-6">
+      <Separator />
+
+      {/* Triggers */}
+      <section>
         <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-semibold text-foreground">
-            Triggers ({config.triggers.length})
-          </h4>
+          <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-amber-500" />
+            Triggers
+            <Badge variant="secondary" className="font-mono">
+              {config.triggers.length}
+            </Badge>
+          </h3>
           <Button
             type="button"
-            variant="secondary"
+            variant="outline"
             size="sm"
             onClick={addTrigger}
+            className="gap-1"
           >
-            <Plus className="h-4 w-4 mr-1" />
+            <Plus className="h-4 w-4" />
             Add Trigger
           </Button>
         </div>
 
         {config.triggers.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No triggers configured. Click "Add Trigger" to define when to capture
-            snapshots.
+          <div className="text-center py-12 border border-dashed border-border rounded-lg bg-muted/20">
+            <Clock className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground text-sm">
+              No triggers configured.
+            </p>
+            <p className="text-muted-foreground text-xs mt-1">
+              Add a trigger to start capturing market snapshots.
+            </p>
           </div>
         ) : (
-          <Accordion type="multiple" className="space-y-2">
+          <div className="space-y-3">
             {config.triggers.map((trigger, index) => (
-              <AccordionItem
-                key={trigger.id}
-                value={trigger.id}
-                className="border border-border rounded-lg px-4 bg-card"
-              >
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm font-semibold text-primary">
-                      {trigger.id}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {trigger.type} · {trigger.thresholdPercent}%
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-4 pb-2">
-                  <div className="space-y-4">
-                    <div className="grid gap-4 md:grid-cols-2">
-                      <FormField label="Trigger ID" description="Unique identifier">
-                        <Input
-                          value={trigger.id}
-                          onChange={(e) =>
-                            updateTrigger(index, {
-                              ...trigger,
-                              id: e.target.value,
-                            })
-                          }
-                        />
-                      </FormField>
-
-                      <FormField label="Trigger Type" description="Type of trigger">
-                        <Select
-                          value={trigger.type}
-                          onValueChange={(v) =>
-                            updateTrigger(index, {
-                              ...trigger,
-                              type: v as TimeMachineTrigger["type"],
-                            })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="price_change">Price Change</SelectItem>
-                            <SelectItem value="indicator_cross">
-                              Indicator Cross
-                            </SelectItem>
-                            <SelectItem value="custom">Custom</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormField>
-
-                      <FormField
-                        label="Lookback Candles"
-                        description="Candles to look back"
-                      >
-                        <Input
-                          type="number"
-                          min={1}
-                          max={100}
-                          value={trigger.lookbackCandles}
-                          onChange={(e) =>
-                            updateTrigger(index, {
-                              ...trigger,
-                              lookbackCandles: parseInt(e.target.value) || 10,
-                            })
-                          }
-                        />
-                      </FormField>
-
-                      <FormField
-                        label="Threshold (%)"
-                        description="Percentage threshold"
-                      >
-                        <Input
-                          type="number"
-                          min={0.1}
-                          max={100}
-                          step={0.1}
-                          value={trigger.thresholdPercent}
-                          onChange={(e) =>
-                            updateTrigger(index, {
-                              ...trigger,
-                              thresholdPercent: parseFloat(e.target.value) || 5,
-                            })
-                          }
-                        />
-                      </FormField>
-
-                      <FormField label="Direction" description="Price direction">
-                        <Select
-                          value={trigger.direction}
-                          onValueChange={(v) =>
-                            updateTrigger(index, {
-                              ...trigger,
-                              direction: v as TimeMachineTrigger["direction"],
-                            })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="up">Up</SelectItem>
-                            <SelectItem value="down">Down</SelectItem>
-                            <SelectItem value="both">Both</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FormField>
+              <Card key={index} className="border-border bg-card/50">
+                <CardHeader className="py-3 px-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="font-mono text-xs">
+                        #{index + 1}
+                      </Badge>
+                      <span className="font-mono text-sm text-foreground">
+                        {trigger.id || "Unnamed"}
+                      </span>
                     </div>
-
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => removeTrigger(index)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-1" />
-                        Remove Trigger
-                      </Button>
-                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => removeTrigger(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </div>
-                </AccordionContent>
-              </AccordionItem>
+                </CardHeader>
+                <CardContent className="pt-0 pb-4 px-4">
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    <FormField label="Trigger ID" description="Unique identifier">
+                      <Input
+                        value={trigger.id}
+                        onChange={(e) =>
+                          updateTrigger(index, { ...trigger, id: e.target.value })
+                        }
+                        placeholder="short_term_burst"
+                        className="font-mono"
+                      />
+                    </FormField>
+
+                    <FormField
+                      label="Condition"
+                      description="Expression to evaluate"
+                      className="sm:col-span-2"
+                    >
+                      <Input
+                        value={trigger.condition}
+                        onChange={(e) =>
+                          updateTrigger(index, {
+                            ...trigger,
+                            condition: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., PRICE_CHANGE_10 >= 1.0"
+                        className="font-mono"
+                      />
+                    </FormField>
+
+                    <FormField
+                      label="Lookback Candles"
+                      description="Historical window size"
+                    >
+                      <NumberInput
+                        value={trigger.lookBackCandles}
+                        onChange={(v) =>
+                          updateTrigger(index, { ...trigger, lookBackCandles: v })
+                        }
+                        min={0}
+                        max={1000}
+                      />
+                    </FormField>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
-          </Accordion>
+          </div>
         )}
-      </div>
+      </section>
     </div>
   );
 }

@@ -1,9 +1,5 @@
 export { SessionTab } from "./SessionTab";
-export { EnvironmentTab } from "./EnvironmentTab";
 export { MarketTab } from "./MarketTab";
 export { IndicatorsTab } from "./IndicatorsTab";
 export { StrategyTab } from "./StrategyTab";
 export { TimeMachineTab } from "./TimeMachineTab";
-export { ResearchTab } from "./ResearchTab";
-export { StorageTab } from "./StorageTab";
-export { ObservabilityTab } from "./ObservabilityTab";

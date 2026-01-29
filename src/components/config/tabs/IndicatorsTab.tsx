@@ -1,227 +1,117 @@
-import { IndicatorsConfig, IndicatorEntry } from "@/types/config";
-import { FormField, KeyValueEditor } from "../shared";
-import { Input } from "@/components/ui/input";
+import { IndicatorsConfig, IndicatorsEnabled, INDICATOR_CATEGORIES, INDICATOR_LABELS } from "@/types/config";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Check, X } from "lucide-react";
 
 interface IndicatorsTabProps {
   config: IndicatorsConfig;
   onChange: (config: IndicatorsConfig) => void;
 }
 
-const COMMON_INDICATORS = [
-  "EMA",
-  "SMA",
-  "RSI",
-  "MACD",
-  "BOLLINGER",
-  "ATR",
-  "PRICE_CHANGE",
-  "VOLUME",
-  "VWAP",
-  "CUSTOM",
-];
-
 export function IndicatorsTab({ config, onChange }: IndicatorsTabProps) {
-  const updateField = <K extends keyof IndicatorsConfig>(
-    key: K,
-    value: IndicatorsConfig[K]
-  ) => {
-    onChange({ ...config, [key]: value });
+  const toggleIndicator = (key: keyof IndicatorsEnabled, value: boolean) => {
+    onChange({
+      ...config,
+      enabled: { ...config.enabled, [key]: value },
+    });
   };
 
-  const addIndicator = () => {
-    const newIndicator: IndicatorEntry = {
-      name: "EMA",
-      parameters: { period: 21 },
-    };
-    updateField("enabled", [...config.enabled, newIndicator]);
+  const enableAll = () => {
+    const allEnabled = Object.keys(config.enabled).reduce((acc, key) => {
+      acc[key as keyof IndicatorsEnabled] = true;
+      return acc;
+    }, {} as IndicatorsEnabled);
+    onChange({ ...config, enabled: allEnabled });
   };
 
-  const removeIndicator = (index: number) => {
-    const newEnabled = [...config.enabled];
-    newEnabled.splice(index, 1);
-    updateField("enabled", newEnabled);
+  const disableAll = () => {
+    const allDisabled = Object.keys(config.enabled).reduce((acc, key) => {
+      acc[key as keyof IndicatorsEnabled] = false;
+      return acc;
+    }, {} as IndicatorsEnabled);
+    onChange({ ...config, enabled: allDisabled });
   };
 
-  const updateIndicator = (index: number, indicator: IndicatorEntry) => {
-    const newEnabled = [...config.enabled];
-    newEnabled[index] = indicator;
-    updateField("enabled", newEnabled);
-  };
+  const enabledCount = Object.values(config.enabled).filter(Boolean).length;
+  const totalCount = Object.keys(config.enabled).length;
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-6 md:grid-cols-2">
-        <FormField label="Emit On" description="When to emit indicator values">
-          <Select
-            value={config.emitOn}
-            onValueChange={(v) =>
-              updateField("emitOn", v as IndicatorsConfig["emitOn"])
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="KLINE_CLOSE">Kline Close</SelectItem>
-              <SelectItem value="KLINE_OPEN">Kline Open</SelectItem>
-            </SelectContent>
-          </Select>
-        </FormField>
-
-        <FormField
-          label="Default Rolling Window"
-          description="Default candles to keep for calculations"
-        >
-          <Input
-            type="number"
-            min={10}
-            max={1000}
-            value={config.defaultRollingWindow}
-            onChange={(e) =>
-              updateField("defaultRollingWindow", parseInt(e.target.value) || 100)
-            }
-          />
-        </FormField>
-      </div>
-
-      <div className="border-t border-border pt-6">
-        <div className="flex items-center justify-between mb-4">
-          <h4 className="text-sm font-semibold text-foreground">
-            Enabled Indicators ({config.enabled.length})
-          </h4>
+      {/* Header with bulk actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            Technical Indicators
+          </h3>
+          <Badge variant="secondary" className="font-mono">
+            {enabledCount}/{totalCount} enabled
+          </Badge>
+        </div>
+        <div className="flex gap-2">
           <Button
             type="button"
-            variant="secondary"
+            variant="outline"
             size="sm"
-            onClick={addIndicator}
+            onClick={enableAll}
+            className="gap-1"
           >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Indicator
+            <Check className="h-3 w-3" />
+            Enable All
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={disableAll}
+            className="gap-1"
+          >
+            <X className="h-3 w-3" />
+            Disable All
           </Button>
         </div>
+      </div>
 
-        {config.enabled.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            No indicators configured. Click "Add Indicator" to get started.
+      {/* Indicator Categories */}
+      <div className="space-y-6">
+        {Object.entries(INDICATOR_CATEGORIES).map(([category, indicators]) => (
+          <div key={category} className="space-y-3">
+            <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              {category}
+            </h4>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2">
+              {indicators.map((indicator) => {
+                const key = indicator as keyof IndicatorsEnabled;
+                const isEnabled = config.enabled[key];
+                const label = INDICATOR_LABELS[indicator] || indicator;
+
+                return (
+                  <button
+                    key={indicator}
+                    type="button"
+                    onClick={() => toggleIndicator(key, !isEnabled)}
+                    className={`
+                      flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border text-left text-sm
+                      transition-all duration-150
+                      ${
+                        isEnabled
+                          ? "bg-primary/10 border-primary/30 text-foreground"
+                          : "bg-muted/30 border-border text-muted-foreground hover:bg-muted/50"
+                      }
+                    `}
+                  >
+                    <span className="truncate font-medium">{label}</span>
+                    <Switch
+                      checked={isEnabled}
+                      onCheckedChange={(v) => toggleIndicator(key, v)}
+                      className="shrink-0 pointer-events-none"
+                    />
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        ) : (
-          <Accordion type="multiple" className="space-y-2">
-            {config.enabled.map((indicator, index) => (
-              <AccordionItem
-                key={index}
-                value={`indicator-${index}`}
-                className="border border-border rounded-lg px-4 bg-card"
-              >
-                <AccordionTrigger className="hover:no-underline">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm font-semibold text-primary">
-                      {indicator.name}
-                    </span>
-                    <span className="text-xs text-muted-foreground">
-                      {Object.keys(indicator.parameters).length} params
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent className="pt-4 pb-2">
-                  <div className="space-y-4">
-                    <div className="flex items-end gap-4">
-                      <FormField
-                        label="Indicator Name"
-                        description="Select or type indicator"
-                        className="flex-1"
-                      >
-                        <Select
-                          value={
-                            COMMON_INDICATORS.includes(indicator.name)
-                              ? indicator.name
-                              : "CUSTOM"
-                          }
-                          onValueChange={(v) => {
-                            if (v === "CUSTOM") return;
-                            updateIndicator(index, {
-                              ...indicator,
-                              name: v,
-                            });
-                          }}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {COMMON_INDICATORS.map((name) => (
-                              <SelectItem key={name} value={name}>
-                                {name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </FormField>
-
-                      {!COMMON_INDICATORS.includes(indicator.name) && (
-                        <FormField
-                          label="Custom Name"
-                          description="Enter custom indicator name"
-                          className="flex-1"
-                        >
-                          <Input
-                            value={indicator.name}
-                            onChange={(e) =>
-                              updateIndicator(index, {
-                                ...indicator,
-                                name: e.target.value.toUpperCase(),
-                              })
-                            }
-                            placeholder="CUSTOM_INDICATOR"
-                          />
-                        </FormField>
-                      )}
-
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="text-muted-foreground hover:text-destructive"
-                        onClick={() => removeIndicator(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-
-                    <FormField
-                      label="Parameters"
-                      description="Key-value parameters for this indicator"
-                    >
-                      <KeyValueEditor
-                        value={indicator.parameters as Record<string, unknown>}
-                        onChange={(params) =>
-                          updateIndicator(index, {
-                            ...indicator,
-                            parameters: params,
-                          })
-                        }
-                      />
-                    </FormField>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        )}
+        ))}
       </div>
     </div>
   );
