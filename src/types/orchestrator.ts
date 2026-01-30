@@ -42,6 +42,8 @@ export enum ServiceState {
   Ready = 2,
   Unhealthy = 3,
   Fatal = 4,
+  Completed = 5,
+  Connected = 6,
 }
 
 // ========================================

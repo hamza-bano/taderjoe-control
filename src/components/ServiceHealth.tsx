@@ -61,6 +61,18 @@ function getStateStyles(state: ServiceState): {
         text: "text-status-fatal",
         glow: "glow-red",
       };
+    case ServiceState.Connected:
+      return {
+        dot: "bg-status-active",
+        text: "text-status-active",
+        glow: "glow-cyan",
+      };
+    case ServiceState.Completed:
+      return {
+        dot: "bg-status-completed",
+        text: "text-status-completed",
+        glow: "glow-green",
+      };
     case ServiceState.Stopped:
     default:
       return {
@@ -133,7 +145,11 @@ function ServiceCard({ service }: { service: ServiceInfo }) {
                       ? "Unhealthy"
                       : service.state === 4
                         ? "Fatal"
-                        : "Unknown"}
+                        : service.state === 5
+                          ? "Completed"
+                          : service.state === 6
+                            ? "Connected"
+                            : "Unknown"}
             </span>
           </div>
 

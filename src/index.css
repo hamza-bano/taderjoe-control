@@ -46,6 +46,10 @@
     --status-stopped: 220 10% 40%;
     --status-connected: 142 70% 45%;
     --status-disconnected: 0 70% 50%;
+    --status-warning: 32 95% 55%; /* orange */
+    --status-special: 265 80% 65%; /* purple */
+    --status-active: 190 90% 55%; /* cyan */
+    --status-attention: 330 85% 65%; /* pink */
 
     /* Session States */
     --session-idle: 220 10% 50%;
@@ -97,12 +101,15 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 
   /* Terminal-style monospace for data */
   .font-mono {
-    font-family: 'JetBrains Mono', 'Fira Code', 'SF Mono', 'Consolas', monospace;
+    font-family:
+      "JetBrains Mono", "Fira Code", "SF Mono", "Consolas", monospace;
   }
 }
 
@@ -163,6 +170,53 @@
     color: hsl(var(--status-stopped));
   }
 
+  .text-status-special {
+    color: hsl(var(--status-special));
+  }
+  .text-status-warning {
+    color: hsl(var(--status-warning));
+  }
+  .text-status-active {
+    color: hsl(var(--status-active));
+  }
+
+  /* Background variants for states */
+  .bg-status-ready {
+    background-color: hsl(var(--status-ready));
+  }
+
+  .bg-status-starting {
+    background-color: hsl(var(--status-starting));
+  }
+
+  .bg-status-unhealthy {
+    background-color: hsl(var(--status-unhealthy));
+  }
+
+  .bg-status-fatal {
+    background-color: hsl(var(--status-fatal));
+  }
+
+  .bg-status-stopped {
+    background-color: hsl(var(--status-stopped));
+  }
+
+  .bg-status-active {
+    background-color: hsl(var(--status-active));
+  }
+
+  .bg-status-warning {
+    background-color: hsl(var(--status-warning));
+  }
+
+  .bg-status-special {
+    background-color: hsl(var(--status-special));
+  }
+
+  .bg-status-attention {
+    background-color: hsl(var(--status-attention));
+  }
+
   /* Card hover effect */
   .card-interactive {
     @apply transition-all duration-200;
@@ -178,7 +232,7 @@
   }
 
   .stale-overlay::after {
-    content: '';
+    content: "";
     @apply absolute inset-0 bg-background/50 pointer-events-none;
   }
 }
@@ -199,5 +253,22 @@
 
   .glow-yellow {
     box-shadow: 0 0 8px hsl(var(--status-unhealthy) / 0.5);
+  }
+
+  /* New glow colors */
+  .glow-orange {
+    box-shadow: 0 0 8px hsl(var(--status-warning) / 0.5);
+  }
+
+  .glow-purple {
+    box-shadow: 0 0 8px hsl(var(--status-special) / 0.5);
+  }
+
+  .glow-cyan {
+    box-shadow: 0 0 8px hsl(var(--status-active) / 0.5);
+  }
+
+  .glow-pink {
+    box-shadow: 0 0 8px hsl(var(--status-attention) / 0.5);
   }
 }
