@@ -3,8 +3,9 @@ import { SessionState } from "@/types/orchestrator";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { Play, Square, AlertCircle, X } from "lucide-react";
+import { Play, Square, AlertCircle, X, ExternalLink } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 function formatTimestamp(iso: string | null): string {
   if (!iso) return "Never";
@@ -41,6 +42,7 @@ export function SessionControl() {
     isConnected,
     isStale,
     session,
+    config,
     error,
     startSession,
     stopSession,
@@ -52,6 +54,20 @@ export function SessionControl() {
     isConnected &&
     (session?.state === SessionState.Running ||
       session?.state === SessionState.Starting);
+
+  const isRunning = session?.state === SessionState.Running;
+  const symbols = config?.market?.symbols || [];
+
+  const openTradingView = (symbol: string) => {
+    if (!session?.sessionId) return;
+    const params = new URLSearchParams({
+      sessionId: session.sessionId,
+      symbol,
+      primary: config?.market?.interval || "5m",
+      secondary: config?.market?.secondaryInterval || "1m",
+    });
+    window.open(`/trading?${params.toString()}`, "_blank");
+  };
 
   return (
     <Card className={cn("card-interactive", isStale && "stale-overlay")}>
@@ -137,6 +153,34 @@ export function SessionControl() {
             Stop Session
           </Button>
         </div>
+
+        {/* Trading View Launcher */}
+        {isRunning && symbols.length > 0 && (
+          <div className="pt-2 border-t border-border">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground uppercase tracking-wider">
+                Open Trading View
+              </span>
+              <Badge variant="secondary" className="text-xs">
+                {config?.market?.interval} / {config?.market?.secondaryInterval}
+              </Badge>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {symbols.map((symbol) => (
+                <Button
+                  key={symbol}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openTradingView(symbol)}
+                  className="gap-1.5 text-xs"
+                >
+                  {symbol}
+                  <ExternalLink className="h-3 w-3" />
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Stale Indicator */}
         {isStale && (
