@@ -73,6 +73,12 @@ function getStateStyles(state: ServiceState): {
         text: "text-status-completed",
         glow: "glow-green",
       };
+    case ServiceState.Started:
+      return {
+        dot: "bg-status-started",
+        text: "text-status-started",
+        glow: "glow-started",
+      };
     case ServiceState.Stopped:
     default:
       return {
@@ -149,7 +155,9 @@ function ServiceCard({ service }: { service: ServiceInfo }) {
                           ? "Completed"
                           : service.state === 6
                             ? "Connected"
-                            : "Unknown"}
+                            : service.state === 7
+                              ? "Started"
+                              : "Unknown"}
             </span>
           </div>
 

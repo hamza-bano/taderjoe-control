@@ -44,6 +44,7 @@ export enum ServiceState {
   Fatal = 4,
   Completed = 5,
   Connected = 6,
+  Started = 7,
 }
 
 // ========================================

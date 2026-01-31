@@ -50,6 +50,8 @@
     --status-special: 265 80% 65%; /* purple */
     --status-active: 190 90% 55%; /* cyan */
     --status-attention: 330 85% 65%; /* pink */
+    --status-started: 142 55% 32%; /* dark green, clearly different from Ready */
+
 
     /* Session States */
     --session-idle: 220 10% 50%;
@@ -179,6 +181,10 @@
   .text-status-active {
     color: hsl(var(--status-active));
   }
+.text-status-started {
+  color: hsl(var(--status-started)) !important;
+}
+
 
   /* Background variants for states */
   .bg-status-ready {
@@ -215,6 +221,9 @@
 
   .bg-status-attention {
     background-color: hsl(var(--status-attention));
+  }
+  .bg-status-started {
+    background-color: hsl(var(--status-started));
   }
 
   /* Card hover effect */
@@ -270,5 +279,13 @@
 
   .glow-pink {
     box-shadow: 0 0 8px hsl(var(--status-attention) / 0.5);
+  }
+  /* Dark green glow for Started */
+  .glow-started {
+    box-shadow: 0 0 8px hsl(var(--status-started) / 0.6);
+  }
+
+  .text-glow-started {
+    text-shadow: 0 0 6px hsl(var(--status-started) / 0.7);
   }
 }
