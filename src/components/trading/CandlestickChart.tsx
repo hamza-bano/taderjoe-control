@@ -1,4 +1,21 @@
-import { useMemo } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
+import {
+  ChartCanvas,
+  Chart,
+  CandlestickSeries,
+  BarSeries,
+  XAxis,
+  YAxis,
+  CrossHairCursor,
+  MouseCoordinateX,
+  MouseCoordinateY,
+  OHLCTooltip,
+  discontinuousTimeScaleProvider,
+  EdgeIndicator,
+  lastVisibleItemBasedZoomAnchor,
+} from "react-financial-charts";
+import { format } from "d3-format";
+import { timeFormat } from "d3-time-format";
 import { Kline } from "@/types/market";
 import { cn } from "@/lib/utils";
 
@@ -11,25 +28,36 @@ interface CandlestickChartProps {
   className?: string;
 }
 
-function formatPrice(price: number): string {
-  if (price >= 1000) return price.toFixed(2);
-  if (price >= 1) return price.toFixed(4);
-  return price.toFixed(6);
+interface ChartData {
+  date: Date;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
 }
 
-function formatTime(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleTimeString("en-US", {
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-function formatVolume(vol: number): string {
-  if (vol >= 1000000) return `${(vol / 1000000).toFixed(2)}M`;
-  if (vol >= 1000) return `${(vol / 1000).toFixed(2)}K`;
-  return vol.toFixed(2);
+function transformKlines(klines: Kline[], currentKline: Kline | null): ChartData[] {
+  const all = [...klines];
+  if (currentKline) {
+    const existingIdx = all.findIndex(k => k.OpenTime === currentKline.OpenTime);
+    if (existingIdx >= 0) {
+      all[existingIdx] = currentKline;
+    } else {
+      all.push(currentKline);
+    }
+  }
+  
+  return all
+    .map(k => ({
+      date: new Date(k.OpenTime),
+      open: parseFloat(k.Open),
+      high: parseFloat(k.High),
+      low: parseFloat(k.Low),
+      close: parseFloat(k.Close),
+      volume: parseFloat(k.Volume),
+    }))
+    .sort((a, b) => a.date.getTime() - b.date.getTime());
 }
 
 export function CandlestickChart({
@@ -40,231 +68,218 @@ export function CandlestickChart({
   compact = false,
   className,
 }: CandlestickChartProps) {
-  // Combine closed klines with current kline for display
-  const displayKlines = useMemo(() => {
-    const all = [...klines];
-    if (currentKline) {
-      // Replace or add current kline
-      const existingIdx = all.findIndex(
-        (k) => k.OpenTime === currentKline.OpenTime
-      );
-      if (existingIdx >= 0) {
-        all[existingIdx] = currentKline;
-      } else {
-        all.push(currentKline);
-      }
-    }
-    return all.slice(-50); // Show last 50 candles
-  }, [klines, currentKline]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
-  // Calculate price range for scaling
-  const { minPrice, maxPrice, priceRange } = useMemo(() => {
-    if (displayKlines.length === 0) {
-      return { minPrice: 0, maxPrice: 0, priceRange: 1 };
-    }
-    let min = Infinity;
-    let max = -Infinity;
-    displayKlines.forEach((k) => {
-      const low = parseFloat(k.Low);
-      const high = parseFloat(k.High);
-      if (low < min) min = low;
-      if (high > max) max = high;
-    });
-    const padding = (max - min) * 0.1;
-    return {
-      minPrice: min - padding,
-      maxPrice: max + padding,
-      priceRange: max - min + padding * 2,
+  // Handle resize
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const updateDimensions = () => {
+      const { width, height } = container.getBoundingClientRect();
+      setDimensions({ width, height: height - (compact ? 40 : 56) }); // Account for header
     };
-  }, [displayKlines]);
 
-  // Current price info
-  const latestKline = currentKline || displayKlines[displayKlines.length - 1];
-  const priceChange = latestKline
-    ? parseFloat(latestKline.Close) - parseFloat(latestKline.Open)
+    updateDimensions();
+    
+    const resizeObserver = new ResizeObserver(updateDimensions);
+    resizeObserver.observe(container);
+    
+    return () => resizeObserver.disconnect();
+  }, [compact]);
+
+  // Transform and prepare data
+  const chartData = useMemo(() => 
+    transformKlines(klines, currentKline), 
+    [klines, currentKline]
+  );
+
+  // Latest price info for header
+  const latestData = chartData[chartData.length - 1];
+  const priceChange = latestData 
+    ? latestData.close - latestData.open 
     : 0;
-  const priceChangePct = latestKline
-    ? (priceChange / parseFloat(latestKline.Open)) * 100
+  const priceChangePct = latestData 
+    ? (priceChange / latestData.open) * 100 
     : 0;
 
-  if (displayKlines.length === 0) {
+  if (chartData.length < 2) {
     return (
-      <div className={cn("flex items-center justify-center h-full text-muted-foreground", className)}>
-        Waiting for kline data...
+      <div 
+        ref={containerRef}
+        className={cn("flex flex-col h-full bg-card", className)}
+      >
+        <div className="flex items-center px-4 py-2 border-b border-border">
+          <h3 className="text-sm font-semibold text-foreground">
+            {title || `Chart ${interval}`}
+          </h3>
+        </div>
+        <div className="flex-1 flex items-center justify-center text-muted-foreground">
+          Waiting for kline data...
+        </div>
       </div>
     );
   }
 
-  const chartHeight = compact ? 150 : 300;
-  const candleWidth = compact ? 6 : 10;
-  const chartWidth = displayKlines.length * (candleWidth + 2);
+  const xScaleProvider = discontinuousTimeScaleProvider.inputDateAccessor(
+    (d: ChartData) => d.date
+  );
+  
+  const { data, xScale, xAccessor, displayXAccessor } = xScaleProvider(chartData);
+  const max = xAccessor(data[data.length - 1]);
+  const min = xAccessor(data[Math.max(0, data.length - 50)]);
+  const xExtents = [min, max];
+
+  const margin = compact 
+    ? { left: 0, right: 55, top: 10, bottom: 25 }
+    : { left: 0, right: 55, top: 15, bottom: 30 };
+  
+  const chartHeight = dimensions.height;
+  const volumeHeight = compact ? 0 : chartHeight * 0.2;
+  const candleHeight = chartHeight - volumeHeight;
+
+  const priceFormat = format(".2f");
+  const volumeFormat = format(".2s");
+  const dateFormat = timeFormat("%H:%M");
 
   return (
-    <div className={cn("flex flex-col h-full bg-card", className)}>
+    <div 
+      ref={containerRef}
+      className={cn("flex flex-col h-full bg-card overflow-hidden", className)}
+    >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border">
+      <div className={cn(
+        "flex items-center justify-between px-4 border-b border-border",
+        compact ? "py-1.5" : "py-2"
+      )}>
         <div className="flex items-center gap-3">
-          <h3 className="text-sm font-semibold text-foreground">
-            {title || `${latestKline?.Symbol || "---"} ${interval}`}
+          <h3 className={cn(
+            "font-semibold text-foreground",
+            compact ? "text-xs" : "text-sm"
+          )}>
+            {title || `${interval}`}
           </h3>
-          {latestKline && (
+          {latestData && (
             <>
-              <span className="text-lg font-bold font-mono text-foreground">
-                {formatPrice(parseFloat(latestKline.Close))}
+              <span className={cn(
+                "font-bold font-mono text-foreground",
+                compact ? "text-sm" : "text-lg"
+              )}>
+                {priceFormat(latestData.close)}
               </span>
               <span
                 className={cn(
-                  "text-sm font-mono",
+                  "font-mono",
+                  compact ? "text-xs" : "text-sm",
                   priceChange >= 0 ? "text-status-ready" : "text-destructive"
                 )}
               >
                 {priceChange >= 0 ? "+" : ""}
-                {formatPrice(priceChange)} ({priceChangePct.toFixed(2)}%)
+                {priceFormat(priceChange)} ({priceChangePct.toFixed(2)}%)
               </span>
             </>
           )}
         </div>
-        {latestKline && !compact && (
-          <div className="flex gap-4 text-xs text-muted-foreground">
-            <span>O: {formatPrice(parseFloat(latestKline.Open))}</span>
-            <span>H: {formatPrice(parseFloat(latestKline.High))}</span>
-            <span>L: {formatPrice(parseFloat(latestKline.Low))}</span>
-            <span>V: {formatVolume(parseFloat(latestKline.Volume))}</span>
+        {latestData && !compact && (
+          <div className="flex gap-4 text-xs text-muted-foreground font-mono">
+            <span>O: {priceFormat(latestData.open)}</span>
+            <span>H: {priceFormat(latestData.high)}</span>
+            <span>L: {priceFormat(latestData.low)}</span>
+            <span>V: {volumeFormat(latestData.volume)}</span>
           </div>
         )}
       </div>
 
-      {/* Chart Area */}
-      <div className="flex-1 relative overflow-x-auto overflow-y-hidden">
-        <div className="flex h-full">
-          {/* Price Scale */}
-          <div className="w-16 flex-shrink-0 flex flex-col justify-between py-2 px-1 text-xs text-muted-foreground font-mono border-r border-border">
-            <span>{formatPrice(maxPrice)}</span>
-            <span>{formatPrice((maxPrice + minPrice) / 2)}</span>
-            <span>{formatPrice(minPrice)}</span>
-          </div>
-
-          {/* Candlesticks */}
-          <div
-            className="flex-1 relative"
-            style={{ minWidth: chartWidth, height: chartHeight }}
+      {/* Chart */}
+      {dimensions.width > 0 && dimensions.height > 0 && (
+        <div className="flex-1">
+          <ChartCanvas
+            height={chartHeight}
+            width={dimensions.width}
+            ratio={window.devicePixelRatio || 1}
+            margin={margin}
+            data={data}
+            seriesName="OHLC"
+            xScale={xScale}
+            xAccessor={xAccessor}
+            displayXAccessor={displayXAccessor}
+            xExtents={xExtents}
+            zoomAnchor={lastVisibleItemBasedZoomAnchor}
           >
-            <svg
-              width="100%"
-              height={chartHeight}
-              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-              preserveAspectRatio="none"
-              className="absolute inset-0"
+            {/* Candlestick Chart */}
+            <Chart
+              id={1}
+              yExtents={(d: ChartData) => [d.high, d.low]}
+              height={candleHeight}
+              origin={[0, 0]}
             >
-              {/* Grid lines */}
-              <line
-                x1="0"
-                y1={chartHeight / 4}
-                x2={chartWidth}
-                y2={chartHeight / 4}
-                stroke="hsl(var(--border))"
-                strokeWidth="0.5"
-                strokeDasharray="4 4"
+              <XAxis
+                showGridLines
+                gridLinesStrokeStyle="rgba(255,255,255,0.05)"
+                strokeStyle="hsl(var(--border))"
+                tickLabelFill="hsl(var(--muted-foreground))"
               />
-              <line
-                x1="0"
-                y1={chartHeight / 2}
-                x2={chartWidth}
-                y2={chartHeight / 2}
-                stroke="hsl(var(--border))"
-                strokeWidth="0.5"
-                strokeDasharray="4 4"
+              <YAxis
+                showGridLines
+                gridLinesStrokeStyle="rgba(255,255,255,0.05)"
+                strokeStyle="hsl(var(--border))"
+                tickLabelFill="hsl(var(--muted-foreground))"
+                tickFormat={priceFormat}
               />
-              <line
-                x1="0"
-                y1={(chartHeight * 3) / 4}
-                x2={chartWidth}
-                y2={(chartHeight * 3) / 4}
-                stroke="hsl(var(--border))"
-                strokeWidth="0.5"
-                strokeDasharray="4 4"
+              <CandlestickSeries
+                fill={(d: ChartData) => d.close > d.open ? "hsl(var(--status-ready))" : "hsl(var(--destructive))"}
+                wickStroke={(d: ChartData) => d.close > d.open ? "hsl(var(--status-ready))" : "hsl(var(--destructive))"}
+                stroke={(d: ChartData) => d.close > d.open ? "hsl(var(--status-ready))" : "hsl(var(--destructive))"}
               />
+              <MouseCoordinateX
+                displayFormat={dateFormat}
+                rectWidth={60}
+              />
+              <MouseCoordinateY
+                displayFormat={priceFormat}
+                rectWidth={55}
+              />
+              <EdgeIndicator
+                itemType="last"
+                orient="right"
+                edgeAt="right"
+                yAccessor={(d: ChartData) => d.close}
+                displayFormat={priceFormat}
+                fill={(d: ChartData) => d?.close > d?.open ? "hsl(var(--status-ready))" : "hsl(var(--destructive))"}
+              />
+              {!compact && <OHLCTooltip origin={[8, 16]} />}
+            </Chart>
 
-              {/* Candles */}
-              {displayKlines.map((kline, idx) => {
-                const open = parseFloat(kline.Open);
-                const close = parseFloat(kline.Close);
-                const high = parseFloat(kline.High);
-                const low = parseFloat(kline.Low);
-                const isGreen = close >= open;
+            {/* Volume Chart - only for non-compact */}
+            {!compact && volumeHeight > 0 && (
+              <Chart
+                id={2}
+                yExtents={(d: ChartData) => d.volume}
+                height={volumeHeight}
+                origin={[0, candleHeight]}
+              >
+                <YAxis
+                  tickFormat={volumeFormat}
+                  strokeStyle="hsl(var(--border))"
+                  tickLabelFill="hsl(var(--muted-foreground))"
+                  ticks={3}
+                />
+                <BarSeries
+                  fillStyle={(d: ChartData) => 
+                    d.close > d.open 
+                      ? "hsla(var(--status-ready), 0.5)" 
+                      : "hsla(var(--destructive), 0.5)"
+                  }
+                  yAccessor={(d: ChartData) => d.volume}
+                />
+              </Chart>
+            )}
 
-                const x = idx * (candleWidth + 2) + 1;
-                const yHigh =
-                  ((maxPrice - high) / priceRange) * chartHeight;
-                const yLow = ((maxPrice - low) / priceRange) * chartHeight;
-                const yOpen =
-                  ((maxPrice - open) / priceRange) * chartHeight;
-                const yClose =
-                  ((maxPrice - close) / priceRange) * chartHeight;
-
-                const bodyTop = Math.min(yOpen, yClose);
-                const bodyHeight = Math.max(Math.abs(yClose - yOpen), 1);
-
-                const color = isGreen
-                  ? "hsl(var(--status-ready))"
-                  : "hsl(var(--destructive))";
-
-                const isCurrent = !kline.IsClosed;
-
-                return (
-                  <g key={`candle-${kline.OpenTime}`}>
-                    {/* Wick */}
-                    <line
-                      x1={x + candleWidth / 2}
-                      y1={yHigh}
-                      x2={x + candleWidth / 2}
-                      y2={yLow}
-                      stroke={color}
-                      strokeWidth="1"
-                    />
-                    {/* Body */}
-                    <rect
-                      x={x}
-                      y={bodyTop}
-                      width={candleWidth}
-                      height={bodyHeight}
-                      fill={isGreen ? color : color}
-                      stroke={color}
-                      strokeWidth={isCurrent ? 2 : 0}
-                      opacity={isCurrent ? 0.8 : 1}
-                    />
-                  </g>
-                );
-              })}
-            </svg>
-          </div>
+            <CrossHairCursor strokeStyle="hsl(var(--muted-foreground))" />
+          </ChartCanvas>
         </div>
-
-        {/* Time Scale */}
-        {!compact && (
-          <div className="flex border-t border-border">
-            <div className="w-16 flex-shrink-0" />
-            <div className="flex-1 flex justify-between px-2 py-1 text-xs text-muted-foreground font-mono overflow-hidden">
-              {displayKlines.length > 0 && (
-                <>
-                  <span>{formatTime(displayKlines[0].OpenTime)}</span>
-                  <span>
-                    {formatTime(
-                      displayKlines[Math.floor(displayKlines.length / 2)]
-                        ?.OpenTime || 0
-                    )}
-                  </span>
-                  <span>
-                    {formatTime(
-                      displayKlines[displayKlines.length - 1]?.OpenTime || 0
-                    )}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
+      )}
     </div>
   );
 }
