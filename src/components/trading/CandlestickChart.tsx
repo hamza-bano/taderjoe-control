@@ -37,8 +37,22 @@ interface ChartData {
   volume: number;
 }
 
+// Colors for the chart (using hex/rgb since canvas doesn't support CSS vars well)
+const COLORS = {
+  green: "#22c55e",
+  red: "#ef4444",
+  greenTransparent: "rgba(34, 197, 94, 0.4)",
+  redTransparent: "rgba(239, 68, 68, 0.4)",
+  gridLine: "rgba(255, 255, 255, 0.06)",
+  axis: "#374151",
+  axisText: "#9ca3af",
+  crosshair: "#6b7280",
+};
+
 function transformKlines(klines: Kline[], currentKline: Kline | null): ChartData[] {
   const all = [...klines];
+  
+  // Add or update current kline
   if (currentKline) {
     const existingIdx = all.findIndex(k => k.OpenTime === currentKline.OpenTime);
     if (existingIdx >= 0) {
@@ -48,7 +62,13 @@ function transformKlines(klines: Kline[], currentKline: Kline | null): ChartData
     }
   }
   
-  return all
+  // If we have no data at all, return empty
+  if (all.length === 0) {
+    return [];
+  }
+  
+  // Transform to chart format
+  const transformed = all
     .map(k => ({
       date: new Date(k.OpenTime),
       open: parseFloat(k.Open),
@@ -58,6 +78,39 @@ function transformKlines(klines: Kline[], currentKline: Kline | null): ChartData
       volume: parseFloat(k.Volume),
     }))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
+  
+  // If we only have one candle, backfill with a synthetic previous candle
+  // so the chart library has enough data to render properly
+  if (transformed.length === 1) {
+    const single = transformed[0];
+    const intervalMs = getIntervalMs(currentKline?.Interval || "1m");
+    const syntheticPrev: ChartData = {
+      date: new Date(single.date.getTime() - intervalMs),
+      open: single.open,
+      high: single.open,
+      low: single.open,
+      close: single.open,
+      volume: 0,
+    };
+    return [syntheticPrev, single];
+  }
+  
+  return transformed;
+}
+
+// Get interval duration in milliseconds
+function getIntervalMs(interval: string): number {
+  const unit = interval.slice(-1);
+  const value = parseInt(interval.slice(0, -1)) || 1;
+  
+  switch (unit) {
+    case 's': return value * 1000;
+    case 'm': return value * 60 * 1000;
+    case 'h': return value * 60 * 60 * 1000;
+    case 'd': return value * 24 * 60 * 60 * 1000;
+    case 'w': return value * 7 * 24 * 60 * 60 * 1000;
+    default: return 60 * 1000; // default 1m
+  }
 }
 
 export function CandlestickChart({
@@ -96,15 +149,20 @@ export function CandlestickChart({
   );
 
   // Latest price info for header
-  const latestData = chartData[chartData.length - 1];
+  const latestData = chartData.length > 0 ? chartData[chartData.length - 1] : null;
   const priceChange = latestData 
     ? latestData.close - latestData.open 
     : 0;
-  const priceChangePct = latestData 
+  const priceChangePct = latestData && latestData.open !== 0
     ? (priceChange / latestData.open) * 100 
     : 0;
 
-  if (chartData.length < 2) {
+  const priceFormat = format(".2f");
+  const volumeFormat = format(".2s");
+  const dateFormat = timeFormat("%H:%M");
+
+  // Show waiting message only if we have no data at all
+  if (chartData.length === 0) {
     return (
       <div 
         ref={containerRef}
@@ -129,19 +187,15 @@ export function CandlestickChart({
   const { data, xScale, xAccessor, displayXAccessor } = xScaleProvider(chartData);
   const max = xAccessor(data[data.length - 1]);
   const min = xAccessor(data[Math.max(0, data.length - 50)]);
-  const xExtents = [min, max];
+  const xExtents = [min, max + 1]; // Add padding on right for current candle
 
   const margin = compact 
-    ? { left: 0, right: 55, top: 10, bottom: 25 }
-    : { left: 0, right: 55, top: 15, bottom: 30 };
+    ? { left: 0, right: 60, top: 10, bottom: 30 }
+    : { left: 0, right: 65, top: 15, bottom: 35 };
   
   const chartHeight = dimensions.height;
-  const volumeHeight = compact ? 0 : chartHeight * 0.2;
+  const volumeHeight = compact ? 0 : Math.max(chartHeight * 0.18, 40);
   const candleHeight = chartHeight - volumeHeight;
-
-  const priceFormat = format(".2f");
-  const volumeFormat = format(".2s");
-  const dateFormat = timeFormat("%H:%M");
 
   return (
     <div 
@@ -172,7 +226,7 @@ export function CandlestickChart({
                 className={cn(
                   "font-mono",
                   compact ? "text-xs" : "text-sm",
-                  priceChange >= 0 ? "text-status-ready" : "text-destructive"
+                  priceChange >= 0 ? "text-green-500" : "text-red-500"
                 )}
               >
                 {priceChange >= 0 ? "+" : ""}
@@ -213,32 +267,43 @@ export function CandlestickChart({
               yExtents={(d: ChartData) => [d.high, d.low]}
               height={candleHeight}
               origin={[0, 0]}
+              padding={{ top: 10, bottom: 10 }}
             >
               <XAxis
                 showGridLines
-                gridLinesStrokeStyle="rgba(255,255,255,0.05)"
-                strokeStyle="hsl(var(--border))"
-                tickLabelFill="hsl(var(--muted-foreground))"
+                gridLinesStrokeStyle={COLORS.gridLine}
+                strokeStyle={COLORS.axis}
+                tickLabelFill={COLORS.axisText}
+                tickStrokeStyle={COLORS.axis}
+                fontSize={11}
               />
               <YAxis
                 showGridLines
-                gridLinesStrokeStyle="rgba(255,255,255,0.05)"
-                strokeStyle="hsl(var(--border))"
-                tickLabelFill="hsl(var(--muted-foreground))"
+                gridLinesStrokeStyle={COLORS.gridLine}
+                strokeStyle={COLORS.axis}
+                tickLabelFill={COLORS.axisText}
+                tickStrokeStyle={COLORS.axis}
                 tickFormat={priceFormat}
+                fontSize={11}
               />
               <CandlestickSeries
-                fill={(d: ChartData) => d.close > d.open ? "hsl(var(--status-ready))" : "hsl(var(--destructive))"}
-                wickStroke={(d: ChartData) => d.close > d.open ? "hsl(var(--status-ready))" : "hsl(var(--destructive))"}
-                stroke={(d: ChartData) => d.close > d.open ? "hsl(var(--status-ready))" : "hsl(var(--destructive))"}
+                fill={(d: ChartData) => d.close > d.open ? COLORS.green : COLORS.red}
+                wickStroke={(d: ChartData) => d.close > d.open ? COLORS.green : COLORS.red}
+                stroke={(d: ChartData) => d.close > d.open ? COLORS.green : COLORS.red}
+                candleStrokeWidth={1}
+                widthRatio={0.8}
               />
               <MouseCoordinateX
                 displayFormat={dateFormat}
-                rectWidth={60}
+                rectWidth={65}
+                fill="#374151"
+                textFill="#e5e7eb"
               />
               <MouseCoordinateY
                 displayFormat={priceFormat}
-                rectWidth={55}
+                rectWidth={60}
+                fill="#374151"
+                textFill="#e5e7eb"
               />
               <EdgeIndicator
                 itemType="last"
@@ -246,9 +311,17 @@ export function CandlestickChart({
                 edgeAt="right"
                 yAccessor={(d: ChartData) => d.close}
                 displayFormat={priceFormat}
-                fill={(d: ChartData) => d?.close > d?.open ? "hsl(var(--status-ready))" : "hsl(var(--destructive))"}
+                fill={(d: ChartData) => d?.close > d?.open ? COLORS.green : COLORS.red}
+                textFill="#ffffff"
+                fontSize={11}
               />
-              {!compact && <OHLCTooltip origin={[8, 16]} />}
+              {!compact && (
+                <OHLCTooltip 
+                  origin={[8, 16]} 
+                  textFill="#e5e7eb"
+                  labelFill="#9ca3af"
+                />
+              )}
             </Chart>
 
             {/* Volume Chart - only for non-compact */}
@@ -258,25 +331,26 @@ export function CandlestickChart({
                 yExtents={(d: ChartData) => d.volume}
                 height={volumeHeight}
                 origin={[0, candleHeight]}
+                padding={{ top: 5, bottom: 0 }}
               >
                 <YAxis
                   tickFormat={volumeFormat}
-                  strokeStyle="hsl(var(--border))"
-                  tickLabelFill="hsl(var(--muted-foreground))"
+                  strokeStyle={COLORS.axis}
+                  tickLabelFill={COLORS.axisText}
+                  tickStrokeStyle={COLORS.axis}
                   ticks={3}
+                  fontSize={10}
                 />
                 <BarSeries
                   fillStyle={(d: ChartData) => 
-                    d.close > d.open 
-                      ? "hsla(var(--status-ready), 0.5)" 
-                      : "hsla(var(--destructive), 0.5)"
+                    d.close > d.open ? COLORS.greenTransparent : COLORS.redTransparent
                   }
                   yAccessor={(d: ChartData) => d.volume}
                 />
               </Chart>
             )}
 
-            <CrossHairCursor strokeStyle="hsl(var(--muted-foreground))" />
+            <CrossHairCursor strokeStyle={COLORS.crosshair} />
           </ChartCanvas>
         </div>
       )}
