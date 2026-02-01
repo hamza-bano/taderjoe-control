@@ -49,7 +49,15 @@ const COLORS = {
   crosshair: "#6b7280",
 };
 
-function transformKlines(klines: Kline[], currentKline: Kline | null): ChartData[] {
+const MIN_CANDLES_FOR_DISPLAY = 30; // Minimum candles to show proper width
+
+function transformKlines(klines: Kline[], currentKline: Kline | null, interval: string): ChartData[] {
+  console.log(`[CandlestickChart] transformKlines called:`, {
+    klinesCount: klines.length,
+    currentKline: currentKline ? { OpenTime: currentKline.OpenTime, Close: currentKline.Close, Interval: currentKline.Interval } : null,
+    interval,
+  });
+
   const all = [...klines];
   
   // Add or update current kline
@@ -57,13 +65,16 @@ function transformKlines(klines: Kline[], currentKline: Kline | null): ChartData
     const existingIdx = all.findIndex(k => k.OpenTime === currentKline.OpenTime);
     if (existingIdx >= 0) {
       all[existingIdx] = currentKline;
+      console.log(`[CandlestickChart] Updated existing kline at index ${existingIdx}`);
     } else {
       all.push(currentKline);
+      console.log(`[CandlestickChart] Added new current kline`);
     }
   }
   
   // If we have no data at all, return empty
   if (all.length === 0) {
+    console.log(`[CandlestickChart] No data available, returning empty`);
     return [];
   }
   
@@ -79,20 +90,30 @@ function transformKlines(klines: Kline[], currentKline: Kline | null): ChartData
     }))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
   
-  // If we only have one candle, backfill with a synthetic previous candle
-  // so the chart library has enough data to render properly
-  if (transformed.length === 1) {
-    const single = transformed[0];
-    const intervalMs = getIntervalMs(currentKline?.Interval || "1m");
-    const syntheticPrev: ChartData = {
-      date: new Date(single.date.getTime() - intervalMs),
-      open: single.open,
-      high: single.open,
-      low: single.open,
-      close: single.open,
-      volume: 0,
-    };
-    return [syntheticPrev, single];
+  console.log(`[CandlestickChart] Transformed ${transformed.length} candles`);
+  
+  // Backfill synthetic candles if we don't have enough data for proper display
+  if (transformed.length < MIN_CANDLES_FOR_DISPLAY) {
+    const intervalMs = getIntervalMs(interval);
+    const firstCandle = transformed[0];
+    const basePrice = firstCandle.open;
+    const candlesToAdd = MIN_CANDLES_FOR_DISPLAY - transformed.length;
+    
+    console.log(`[CandlestickChart] Backfilling ${candlesToAdd} synthetic candles at price ${basePrice}`);
+    
+    const syntheticCandles: ChartData[] = [];
+    for (let i = candlesToAdd; i > 0; i--) {
+      syntheticCandles.push({
+        date: new Date(firstCandle.date.getTime() - (i * intervalMs)),
+        open: basePrice,
+        high: basePrice,
+        low: basePrice,
+        close: basePrice,
+        volume: 0,
+      });
+    }
+    
+    return [...syntheticCandles, ...transformed];
   }
   
   return transformed;
@@ -143,10 +164,14 @@ export function CandlestickChart({
   }, [compact]);
 
   // Transform and prepare data
-  const chartData = useMemo(() => 
-    transformKlines(klines, currentKline), 
-    [klines, currentKline]
-  );
+  const chartData = useMemo(() => {
+    console.log(`[CandlestickChart ${interval}] Preparing chart data:`, {
+      klinesLength: klines.length,
+      hasCurrentKline: !!currentKline,
+      currentKlineInterval: currentKline?.Interval,
+    });
+    return transformKlines(klines, currentKline, interval);
+  }, [klines, currentKline, interval]);
 
   // Latest price info for header
   const latestData = chartData.length > 0 ? chartData[chartData.length - 1] : null;
