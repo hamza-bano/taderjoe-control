@@ -53,11 +53,23 @@ export function useMarketData({
   // Handle MarketUiUpdate event
   const handleMarketUiUpdate = useCallback(
     (update: MarketUiUpdate) => {
-      if (update.symbol !== symbol) return;
+      console.log(`[MarketData] Received update:`, {
+        type: update.type,
+        symbol: update.symbol,
+        expectedSymbol: symbol,
+        payloadPreview: update.payload.substring(0, 100),
+      });
+
+      if (update.symbol !== symbol) {
+        console.log(`[MarketData] Ignoring update for different symbol: ${update.symbol} !== ${symbol}`);
+        return;
+      }
 
       try {
         const payload = JSON.parse(update.payload);
         const now = new Date().toISOString();
+
+        console.log(`[MarketData] Parsed ${update.type} payload:`, payload);
 
         setState((prev) => {
           switch (update.type) {
@@ -81,6 +93,15 @@ export function useMarketData({
 
             case "kline":
               const kline = payload as Kline;
+              console.log(`[MarketData] Kline (closed) received:`, {
+                interval: kline.Interval,
+                primaryInterval,
+                secondaryInterval,
+                isPrimary: kline.Interval === primaryInterval,
+                isSecondary: kline.Interval === secondaryInterval,
+                openTime: kline.OpenTime,
+              });
+              
               if (kline.Interval === primaryInterval) {
                 // Add to primary klines, keep limited
                 const existingIdx = prev.primaryKlines.findIndex(
@@ -92,6 +113,7 @@ export function useMarketData({
                         i === existingIdx ? kline : k
                       )
                     : [...prev.primaryKlines, kline].slice(-MAX_KLINES_DISPLAY);
+                console.log(`[MarketData] Updated primaryKlines: ${updatedPrimary.length} candles`);
                 return {
                   ...prev,
                   primaryKlines: updatedPrimary,
@@ -109,32 +131,48 @@ export function useMarketData({
                     : [...prev.secondaryKlines, kline].slice(
                         -MAX_KLINES_DISPLAY
                       );
+                console.log(`[MarketData] Updated secondaryKlines: ${updatedSecondary.length} candles`);
                 return {
                   ...prev,
                   secondaryKlines: updatedSecondary,
                   lastUpdate: now,
                 };
               }
+              console.log(`[MarketData] Kline interval ${kline.Interval} doesn't match primary (${primaryInterval}) or secondary (${secondaryInterval})`);
               return prev;
 
             case "kline_current":
               const currentKline = payload as Kline;
+              console.log(`[MarketData] Kline_current received:`, {
+                interval: currentKline.Interval,
+                primaryInterval,
+                secondaryInterval,
+                isPrimary: currentKline.Interval === primaryInterval,
+                isSecondary: currentKline.Interval === secondaryInterval,
+                openTime: currentKline.OpenTime,
+                close: currentKline.Close,
+              });
+              
               if (currentKline.Interval === primaryInterval) {
+                console.log(`[MarketData] Setting currentPrimaryKline`);
                 return {
                   ...prev,
                   currentPrimaryKline: currentKline,
                   lastUpdate: now,
                 };
               } else if (currentKline.Interval === secondaryInterval) {
+                console.log(`[MarketData] Setting currentSecondaryKline`);
                 return {
                   ...prev,
                   currentSecondaryKline: currentKline,
                   lastUpdate: now,
                 };
               }
+              console.log(`[MarketData] Current kline interval ${currentKline.Interval} doesn't match primary or secondary`);
               return prev;
 
             default:
+              console.log(`[MarketData] Unknown update type: ${update.type}`);
               return prev;
           }
         });
