@@ -1,7 +1,11 @@
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMarketData } from "@/hooks/useMarketData";
-import { CandlestickChart, OrderBookPanel, TradesFeed } from "@/components/trading";
+import {
+  CandlestickChart,
+  OrderBookPanel,
+  TradesFeed,
+} from "@/components/trading";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -89,7 +93,7 @@ export default function TradingView() {
             <Circle
               className={cn(
                 "h-2 w-2 fill-current",
-                isConnected ? "text-status-ready" : "text-destructive"
+                isConnected ? "text-status-ready" : "text-destructive",
               )}
             />
             <span className="text-muted-foreground">
@@ -117,30 +121,28 @@ export default function TradingView() {
         <ResizablePanelGroup direction="horizontal">
           {/* Left Side - Charts */}
           <ResizablePanel defaultSize={70} minSize={50}>
-            <ScrollArea className="h-full">
-              <div className="flex flex-col h-full">
-                {/* Primary Chart */}
-                <div className="flex-1 min-h-[400px] border-b border-border">
-                  <CandlestickChart
-                    klines={primaryKlines}
-                    currentKline={currentPrimaryKline}
-                    interval={primaryInterval}
-                    title={`${symbol} - Primary (${primaryInterval})`}
-                  />
-                </div>
-
-                {/* Secondary Chart */}
-                <div className="h-[200px] border-b border-border">
-                  <CandlestickChart
-                    klines={secondaryKlines}
-                    currentKline={currentSecondaryKline}
-                    interval={secondaryInterval}
-                    title={`Secondary (${secondaryInterval})`}
-                    compact
-                  />
-                </div>
+            <div className="flex flex-col h-full">
+              {/* Primary Chart */}
+              <div className="flex-1 min-h-[400px] border-b border-border">
+                <CandlestickChart
+                  klines={primaryKlines}
+                  currentKline={currentPrimaryKline}
+                  interval={primaryInterval}
+                  title={`${symbol} - Primary (${primaryInterval})`}
+                />
               </div>
-            </ScrollArea>
+
+              {/* Secondary Chart */}
+              <div className="h-[200px] border-b border-border">
+                <CandlestickChart
+                  klines={secondaryKlines}
+                  currentKline={currentSecondaryKline}
+                  interval={secondaryInterval}
+                  title={`Secondary (${secondaryInterval})`}
+                  compact
+                />
+              </div>
+            </div>
           </ResizablePanel>
 
           <ResizableHandle withHandle />

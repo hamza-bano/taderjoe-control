@@ -55,7 +55,9 @@ export function SessionControl() {
     (session?.state === SessionState.Running ||
       session?.state === SessionState.Starting);
 
-  const isRunning = session?.state === SessionState.Running;
+  const isRunning =
+    session?.state === SessionState.Starting ||
+    session?.state === SessionState.Running;
   const symbols = config?.market?.symbols || [];
 
   const openTradingView = (symbol: string) => {
@@ -105,10 +107,10 @@ export function SessionControl() {
             <p
               className={cn(
                 "font-mono text-sm font-medium",
-                getSessionStateColor(session?.state)
+                getSessionStateColor(session?.state),
               )}
             >
-              {session?.state ?? "Unknown"}
+              {SessionState[session?.state] ?? "Unknown"}
             </p>
           </div>
 
@@ -116,7 +118,10 @@ export function SessionControl() {
             <span className="text-xs text-muted-foreground uppercase tracking-wider">
               Session ID
             </span>
-            <p className="font-mono text-sm truncate" title={session?.sessionId ?? undefined}>
+            <p
+              className="font-mono text-sm truncate"
+              title={session?.sessionId ?? undefined}
+            >
               {session?.sessionId ?? "None"}
             </p>
           </div>

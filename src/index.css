@@ -181,10 +181,9 @@
   .text-status-active {
     color: hsl(var(--status-active));
   }
-.text-status-started {
-  color: hsl(var(--status-started)) !important;
-}
-
+  .text-status-started {
+    color: hsl(var(--status-started)) !important;
+  }
 
   /* Background variants for states */
   .bg-status-ready {

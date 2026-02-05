@@ -13,11 +13,13 @@ import {
   discontinuousTimeScaleProvider,
   EdgeIndicator,
   lastVisibleItemBasedZoomAnchor,
+  HoverTooltip,
 } from "react-financial-charts";
 import { format } from "d3-format";
 import { timeFormat } from "d3-time-format";
 import { Kline } from "@/types/market";
 import { cn } from "@/lib/utils";
+import { StraightLine } from "react-financial-charts";
 
 interface CandlestickChartProps {
   klines: Kline[];
@@ -51,36 +53,50 @@ const COLORS = {
 
 const MIN_CANDLES_FOR_DISPLAY = 30; // Minimum candles to show proper width
 
-function transformKlines(klines: Kline[], currentKline: Kline | null, interval: string): ChartData[] {
+function transformKlines(
+  klines: Kline[],
+  currentKline: Kline | null,
+  interval: string,
+): ChartData[] {
   console.log(`[CandlestickChart] transformKlines called:`, {
     klinesCount: klines.length,
-    currentKline: currentKline ? { OpenTime: currentKline.OpenTime, Close: currentKline.Close, Interval: currentKline.Interval } : null,
+    currentKline: currentKline
+      ? {
+          OpenTime: currentKline.OpenTime,
+          Close: currentKline.Close,
+          Interval: currentKline.Interval,
+        }
+      : null,
     interval,
   });
 
   const all = [...klines];
-  
+
   // Add or update current kline
   if (currentKline) {
-    const existingIdx = all.findIndex(k => k.OpenTime === currentKline.OpenTime);
+    const existingIdx = all.findIndex(
+      (k) => k.OpenTime === currentKline.OpenTime,
+    );
     if (existingIdx >= 0) {
       all[existingIdx] = currentKline;
-      console.log(`[CandlestickChart] Updated existing kline at index ${existingIdx}`);
+      console.log(
+        `[CandlestickChart] Updated existing kline at index ${existingIdx}`,
+      );
     } else {
       all.push(currentKline);
       console.log(`[CandlestickChart] Added new current kline`);
     }
   }
-  
+
   // If we have no data at all, return empty
   if (all.length === 0) {
     console.log(`[CandlestickChart] No data available, returning empty`);
     return [];
   }
-  
+
   // Transform to chart format
   const transformed = all
-    .map(k => ({
+    .map((k) => ({
       date: new Date(k.OpenTime),
       open: parseFloat(k.Open),
       high: parseFloat(k.High),
@@ -89,22 +105,24 @@ function transformKlines(klines: Kline[], currentKline: Kline | null, interval: 
       volume: parseFloat(k.Volume),
     }))
     .sort((a, b) => a.date.getTime() - b.date.getTime());
-  
+
   console.log(`[CandlestickChart] Transformed ${transformed.length} candles`);
-  
+
   // Backfill synthetic candles if we don't have enough data for proper display
   if (transformed.length < MIN_CANDLES_FOR_DISPLAY) {
     const intervalMs = getIntervalMs(interval);
     const firstCandle = transformed[0];
     const basePrice = firstCandle.open;
     const candlesToAdd = MIN_CANDLES_FOR_DISPLAY - transformed.length;
-    
-    console.log(`[CandlestickChart] Backfilling ${candlesToAdd} synthetic candles at price ${basePrice}`);
-    
+
+    console.log(
+      `[CandlestickChart] Backfilling ${candlesToAdd} synthetic candles at price ${basePrice}`,
+    );
+
     const syntheticCandles: ChartData[] = [];
     for (let i = candlesToAdd; i > 0; i--) {
       syntheticCandles.push({
-        date: new Date(firstCandle.date.getTime() - (i * intervalMs)),
+        date: new Date(firstCandle.date.getTime() - i * intervalMs),
         open: basePrice,
         high: basePrice,
         low: basePrice,
@@ -112,10 +130,10 @@ function transformKlines(klines: Kline[], currentKline: Kline | null, interval: 
         volume: 0,
       });
     }
-    
+
     return [...syntheticCandles, ...transformed];
   }
-  
+
   return transformed;
 }
 
@@ -123,14 +141,20 @@ function transformKlines(klines: Kline[], currentKline: Kline | null, interval: 
 function getIntervalMs(interval: string): number {
   const unit = interval.slice(-1);
   const value = parseInt(interval.slice(0, -1)) || 1;
-  
+
   switch (unit) {
-    case 's': return value * 1000;
-    case 'm': return value * 60 * 1000;
-    case 'h': return value * 60 * 60 * 1000;
-    case 'd': return value * 24 * 60 * 60 * 1000;
-    case 'w': return value * 7 * 24 * 60 * 60 * 1000;
-    default: return 60 * 1000; // default 1m
+    case "s":
+      return value * 1000;
+    case "m":
+      return value * 60 * 1000;
+    case "h":
+      return value * 60 * 60 * 1000;
+    case "d":
+      return value * 24 * 60 * 60 * 1000;
+    case "w":
+      return value * 7 * 24 * 60 * 60 * 1000;
+    default:
+      return 60 * 1000; // default 1m
   }
 }
 
@@ -150,17 +174,20 @@ export function CandlestickChart({
     const container = containerRef.current;
     if (!container) return;
 
-    const updateDimensions = () => {
+    const update = () => {
       const { width, height } = container.getBoundingClientRect();
-      setDimensions({ width, height: height - (compact ? 40 : 56) }); // Account for header
+      setDimensions({
+        width,
+        height: Math.max(0, height - (compact ? 40 : 56)),
+      });
     };
 
-    updateDimensions();
-    
-    const resizeObserver = new ResizeObserver(updateDimensions);
-    resizeObserver.observe(container);
-    
-    return () => resizeObserver.disconnect();
+    requestAnimationFrame(update);
+
+    const ro = new ResizeObserver(update);
+    ro.observe(container);
+
+    return () => ro.disconnect();
   }, [compact]);
 
   // Transform and prepare data
@@ -174,13 +201,13 @@ export function CandlestickChart({
   }, [klines, currentKline, interval]);
 
   // Latest price info for header
-  const latestData = chartData.length > 0 ? chartData[chartData.length - 1] : null;
-  const priceChange = latestData 
-    ? latestData.close - latestData.open 
-    : 0;
-  const priceChangePct = latestData && latestData.open !== 0
-    ? (priceChange / latestData.open) * 100 
-    : 0;
+  const latestData =
+    chartData.length > 0 ? chartData[chartData.length - 1] : null;
+  const priceChange = latestData ? latestData.close - latestData.open : 0;
+  const priceChangePct =
+    latestData && latestData.open !== 0
+      ? (priceChange / latestData.open) * 100
+      : 0;
 
   const priceFormat = format(".2f");
   const volumeFormat = format(".2s");
@@ -189,7 +216,7 @@ export function CandlestickChart({
   // Show waiting message only if we have no data at all
   if (chartData.length === 0) {
     return (
-      <div 
+      <div
         ref={containerRef}
         className={cn("flex flex-col h-full bg-card", className)}
       >
@@ -206,52 +233,66 @@ export function CandlestickChart({
   }
 
   const xScaleProvider = discontinuousTimeScaleProvider.inputDateAccessor(
-    (d: ChartData) => d.date
+    (d: ChartData) => d.date,
   );
-  
-  const { data, xScale, xAccessor, displayXAccessor } = xScaleProvider(chartData);
+
+  const DEFAULT_VISIBLE_CANDLES = compact ? 90 : 160;
+
+  const { data, xScale, xAccessor, displayXAccessor } =
+    xScaleProvider(chartData);
   const max = xAccessor(data[data.length - 1]);
-  const min = xAccessor(data[Math.max(0, data.length - 50)]);
+  const min = xAccessor(
+    data[Math.max(0, data.length - DEFAULT_VISIBLE_CANDLES)],
+  );
   const xExtents = [min, max + 1]; // Add padding on right for current candle
 
-  const margin = compact 
+  const margin = compact
     ? { left: 0, right: 60, top: 10, bottom: 30 }
     : { left: 0, right: 65, top: 15, bottom: 35 };
-  
-  const chartHeight = dimensions.height;
+
+  const chartHeight = Math.max(0, dimensions.height);
   const volumeHeight = compact ? 0 : Math.max(chartHeight * 0.18, 40);
   const candleHeight = chartHeight - volumeHeight;
+  if (dimensions.width <= 0 || dimensions.height <= 0) {
+    return <div ref={containerRef} className="flex flex-col h-full bg-card" />;
+  }
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className={cn("flex flex-col h-full bg-card overflow-hidden", className)}
     >
       {/* Header */}
-      <div className={cn(
-        "flex items-center justify-between px-4 border-b border-border",
-        compact ? "py-1.5" : "py-2"
-      )}>
+      <div
+        className={cn(
+          "flex items-center justify-between px-4 border-b border-border",
+          compact ? "py-1.5" : "py-2",
+        )}
+      >
         <div className="flex items-center gap-3">
-          <h3 className={cn(
-            "font-semibold text-foreground",
-            compact ? "text-xs" : "text-sm"
-          )}>
+          <h3
+            className={cn(
+              "font-semibold text-foreground",
+              compact ? "text-xs" : "text-sm",
+            )}
+          >
             {title || `${interval}`}
           </h3>
           {latestData && (
             <>
-              <span className={cn(
-                "font-bold font-mono text-foreground",
-                compact ? "text-sm" : "text-lg"
-              )}>
+              <span
+                className={cn(
+                  "font-bold font-mono text-foreground",
+                  compact ? "text-sm" : "text-lg",
+                )}
+              >
                 {priceFormat(latestData.close)}
               </span>
               <span
                 className={cn(
                   "font-mono",
                   compact ? "text-xs" : "text-sm",
-                  priceChange >= 0 ? "text-green-500" : "text-red-500"
+                  priceChange >= 0 ? "text-green-500" : "text-red-500",
                 )}
               >
                 {priceChange >= 0 ? "+" : ""}
@@ -296,25 +337,31 @@ export function CandlestickChart({
             >
               <XAxis
                 showGridLines
-                gridLinesStrokeStyle={COLORS.gridLine}
-                strokeStyle={COLORS.axis}
-                tickLabelFill={COLORS.axisText}
+                gridLinesStrokeStyle="rgba(255,255,255,0.06)"
+                strokeStyle="#374151"
+                tickLabelFill="#9ca3af"
                 tickStrokeStyle={COLORS.axis}
                 fontSize={11}
               />
               <YAxis
                 showGridLines
-                gridLinesStrokeStyle={COLORS.gridLine}
-                strokeStyle={COLORS.axis}
-                tickLabelFill={COLORS.axisText}
-                tickStrokeStyle={COLORS.axis}
+                gridLinesStrokeStyle="rgba(255,255,255,0.06)"
+                strokeStyle="#374151"
+                tickLabelFill="#9ca3af"
+                tickStrokeStyle="#374151"
                 tickFormat={priceFormat}
                 fontSize={11}
               />
               <CandlestickSeries
-                fill={(d: ChartData) => d.close > d.open ? COLORS.green : COLORS.red}
-                wickStroke={(d: ChartData) => d.close > d.open ? COLORS.green : COLORS.red}
-                stroke={(d: ChartData) => d.close > d.open ? COLORS.green : COLORS.red}
+                fill={(d: ChartData) =>
+                  d.close > d.open ? COLORS.green : COLORS.red
+                }
+                wickStroke={(d: ChartData) =>
+                  d.close > d.open ? COLORS.green : COLORS.red
+                }
+                stroke={(d: ChartData) =>
+                  d.close > d.open ? COLORS.green : COLORS.red
+                }
                 candleStrokeWidth={1}
                 widthRatio={0.8}
               />
@@ -330,23 +377,50 @@ export function CandlestickChart({
                 fill="#374151"
                 textFill="#e5e7eb"
               />
+              <OHLCTooltip
+                origin={[8, 16]}
+                labelFill="#9ca3af"
+                textFill="#e5e7eb"
+                displayTexts={{
+                  o: priceFormat,
+                  h: priceFormat,
+                  l: priceFormat,
+                  c: priceFormat,
+                  na: "N/A",
+                }}
+              />
+
+              {latestData && (
+                <StraightLine
+                  lineDash={"Dot"}
+                  yValue={latestData.close}
+                  strokeStyle={
+                    latestData.close >= latestData.open
+                      ? COLORS.green
+                      : COLORS.red
+                  }
+                  lineWidth={1}
+                />
+              )}
               <EdgeIndicator
                 itemType="last"
                 orient="right"
                 edgeAt="right"
                 yAccessor={(d: ChartData) => d.close}
                 displayFormat={priceFormat}
-                fill={(d: ChartData) => d?.close > d?.open ? COLORS.green : COLORS.red}
-                textFill="#ffffff"
+                fill={(d: ChartData) =>
+                  d?.close > d?.open ? COLORS.green : COLORS.red
+                }
+                textFill="#e5e7eb"
                 fontSize={11}
               />
-              {!compact && (
-                <OHLCTooltip 
-                  origin={[8, 16]} 
+              {/* {!compact && (
+                <OHLCTooltip
+                  origin={[8, 16]}
                   textFill="#e5e7eb"
                   labelFill="#9ca3af"
                 />
-              )}
+              )} */}
             </Chart>
 
             {/* Volume Chart - only for non-compact */}
@@ -367,8 +441,10 @@ export function CandlestickChart({
                   fontSize={10}
                 />
                 <BarSeries
-                  fillStyle={(d: ChartData) => 
-                    d.close > d.open ? COLORS.greenTransparent : COLORS.redTransparent
+                  fillStyle={(d: ChartData) =>
+                    d.close > d.open
+                      ? COLORS.greenTransparent
+                      : COLORS.redTransparent
                   }
                   yAccessor={(d: ChartData) => d.volume}
                 />
