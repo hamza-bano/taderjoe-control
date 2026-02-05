@@ -1,4 +1,4 @@
-import { TimeMachineConfig, TimeMachineTrigger } from "@/types/config";
+import { TimeMachineConfig, TimeMachineTrigger, TriggerComparison } from "@/types/config";
 import { FormField, NumberInput } from "../shared";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -11,11 +11,25 @@ import {
   CardContent,
   CardHeader,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface TimeMachineTabProps {
   config: TimeMachineConfig;
   onChange: (config: TimeMachineConfig) => void;
 }
+
+const COMPARISON_OPTIONS: { value: TriggerComparison; label: string }[] = [
+  { value: "Greater", label: "> Greater" },
+  { value: "GreaterOrEqual", label: "≥ Greater or Equal" },
+  { value: "Less", label: "< Less" },
+  { value: "LessOrEqual", label: "≤ Less or Equal" },
+];
 
 export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
   const updateSnapshotWindow = <K extends keyof TimeMachineConfig["snapshotWindow"]>(
@@ -31,8 +45,10 @@ export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
   const addTrigger = () => {
     const newTrigger: TimeMachineTrigger = {
       id: `trigger_${Date.now()}`,
-      condition: "",
-      lookBackCandles: 10,
+      metric: "PRICE_CHANGE_PERCENT",
+      lookbackCandles: 10,
+      comparison: "GreaterOrEqual",
+      threshold: 1.0,
     };
     onChange({
       ...config,
@@ -154,7 +170,7 @@ export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0 pb-4 px-4">
-                  <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                     <FormField label="Trigger ID" description="Unique identifier">
                       <Input
                         value={trigger.id}
@@ -166,34 +182,71 @@ export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
                       />
                     </FormField>
 
-                    <FormField
-                      label="Condition"
-                      description="Expression to evaluate"
-                      className="sm:col-span-2"
-                    >
-                      <Input
-                        value={trigger.condition}
-                        onChange={(e) =>
+                    <FormField label="Metric" description="Value to evaluate">
+                      <Select
+                        value={trigger.metric}
+                        onValueChange={(v) =>
                           updateTrigger(index, {
                             ...trigger,
-                            condition: e.target.value,
+                            metric: v as "PRICE_CHANGE_PERCENT",
                           })
                         }
-                        placeholder="e.g., PRICE_CHANGE_10 >= 1.0"
-                        className="font-mono"
+                      >
+                        <SelectTrigger className="font-mono">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="PRICE_CHANGE_PERCENT">
+                            PRICE_CHANGE_PERCENT
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormField>
+
+                    <FormField label="Comparison" description="Operator">
+                      <Select
+                        value={trigger.comparison}
+                        onValueChange={(v) =>
+                          updateTrigger(index, {
+                            ...trigger,
+                            comparison: v as TriggerComparison,
+                          })
+                        }
+                      >
+                        <SelectTrigger className="font-mono">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COMPARISON_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormField>
+
+                    <FormField label="Threshold" description="Trigger value">
+                      <NumberInput
+                        value={trigger.threshold}
+                        onChange={(v) =>
+                          updateTrigger(index, { ...trigger, threshold: v })
+                        }
+                        min={0}
+                        step={0.1}
                       />
                     </FormField>
 
                     <FormField
                       label="Lookback Candles"
-                      description="Historical window size"
+                      description="Historical window"
                     >
                       <NumberInput
-                        value={trigger.lookBackCandles}
+                        value={trigger.lookbackCandles}
                         onChange={(v) =>
-                          updateTrigger(index, { ...trigger, lookBackCandles: v })
+                          updateTrigger(index, { ...trigger, lookbackCandles: v })
                         }
-                        min={0}
+                        min={1}
                         max={1000}
                       />
                     </FormField>

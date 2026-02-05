@@ -170,10 +170,15 @@ export interface StrategyConfig {
 // TIME MACHINE CONFIG
 // ========================================
 
+export type TriggerMetric = "PRICE_CHANGE_PERCENT";
+export type TriggerComparison = "Greater" | "GreaterOrEqual" | "Less" | "LessOrEqual";
+
 export interface TimeMachineTrigger {
   id: string;
-  condition: string;
-  lookBackCandles: number;
+  metric: TriggerMetric;
+  lookbackCandles: number;
+  comparison: TriggerComparison;
+  threshold: number;
 }
 
 export interface SnapshotWindow {
@@ -344,13 +349,10 @@ export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
     triggers: [
       {
         id: "short_term_burst",
-        condition: "PRICE_CHANGE_10 >= 1.0",
-        lookBackCandles: 10,
-      },
-      {
-        id: "daily_breakout",
-        condition: "PRICE_CHANGE_288 >= 10.0",
-        lookBackCandles: 100,
+        metric: "PRICE_CHANGE_PERCENT",
+        lookbackCandles: 10,
+        comparison: "GreaterOrEqual",
+        threshold: 1.0,
       },
     ],
     snapshotWindow: {
