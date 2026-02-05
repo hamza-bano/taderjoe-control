@@ -357,7 +357,31 @@ export function useOrchestrator() {
     }));
   }, []);
 
+  // Format config for backend - removes irrelevant market config based on mode
+  const formatConfigForBackend = useCallback((config: PlatformConfig): PlatformConfig => {
+    const formattedConfig = { ...config };
+    
+    // Clean up market config based on mode
+    if (config.market.mode === "live") {
+      // Remove historic config when in live mode
+      formattedConfig.market = {
+        ...config.market,
+        historic: undefined as unknown as typeof config.market.historic,
+      };
+    } else if (config.market.mode === "historic") {
+      // Remove live config when in historic mode
+      formattedConfig.market = {
+        ...config.market,
+        live: undefined as unknown as typeof config.market.live,
+      };
+    }
+
+    console.log("[Orchestrator] Formatted config for backend:", formattedConfig);
+    return formattedConfig;
+  }, []);
+
   // Send full config to backend
+  // Config formatting happens in: src/hooks/useOrchestrator.ts (formatConfigForBackend)
   const updateConfig = useCallback(async () => {
     const connection = connectionRef.current;
     if (!connection || connection.state !== HubConnectionState.Connected) {
@@ -372,7 +396,8 @@ export function useOrchestrator() {
 
     try {
       setState((prev) => ({ ...prev, error: null, configUpdateResult: null }));
-      await connection.invoke("UpdateConfig", { config: state.config });
+      const formattedConfig = formatConfigForBackend(state.config);
+      await connection.invoke("UpdateConfig", { config: formattedConfig });
     } catch (err) {
       console.error("[Orchestrator] UpdateConfig failed", err);
       setState((prev) => ({
@@ -380,7 +405,7 @@ export function useOrchestrator() {
         error: err instanceof Error ? err.message : "UpdateConfig failed",
       }));
     }
-  }, [state.config]);
+  }, [state.config, formatConfigForBackend]);
 
   const clearError = useCallback(() => {
     setState((prev) => ({ ...prev, error: null }));
