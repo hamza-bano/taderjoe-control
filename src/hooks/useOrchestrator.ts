@@ -197,6 +197,19 @@ export function useOrchestrator() {
     }));
   }, []);
 
+  // Handle ConfigUpdateResult
+  const configvalidationresult = useCallback((result: ConfigUpdateResult) => {
+    console.log("[Orchestrator] ConfigUpdateResult", result);
+    setState((prev) => ({
+      ...prev,
+      configUpdateResult: result,
+      error:
+        result.status === "Rejected"
+          ? (result.reason ?? "Config update rejected")
+          : null,
+    }));
+  }, []);
+
   // Initialize connection
   useEffect(() => {
     const connection = new HubConnectionBuilder()
@@ -220,6 +233,7 @@ export function useOrchestrator() {
     connection.on("ServiceStateChanged", handleServiceStateChanged);
     connection.on("ServiceHeartbeat", handleServiceHeartbeat);
     connection.on("ConfigUpdateResult", handleConfigUpdateResult);
+    connection.on("configvalidationresult", configvalidationresult);
 
     // Connection lifecycle handlers
     connection.onclose((error) => {
