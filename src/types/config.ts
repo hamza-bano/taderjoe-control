@@ -99,19 +99,33 @@ export interface StorageConfig {
 // ========================================
 
 export interface IndicatorsEnabled {
-  // EMAs
+  // Moving Averages
   EMA_9: boolean;
   EMA_21: boolean;
   EMA_50: boolean;
   EMA_200: boolean;
-  // SMAs
   SMA_20: boolean;
-  // VWAP
   VWAP: boolean;
+  VWAP_SESSION: boolean;
+  VWAP_DEVIATION: boolean;
+  // Trend
+  PLUS_DI_14: boolean;
+  MINUS_DI_14: boolean;
+  ADX_14: boolean;
+  CHOP_14: boolean;
+  EMA_21_SLOPE_5: boolean;
+  EMA_50_SLOPE_10: boolean;
   // Oscillators
   RSI_14: boolean;
   MACD_12_26_9: boolean;
   ROC_14: boolean;
+  ROC_5: boolean;
+  ROC_10: boolean;
+  ROC_20: boolean;
+  ROC_1_MINUS_ROC_5: boolean;
+  STOCH_RSI_14: boolean;
+  TSI_25_13: boolean;
+  MFI_14: boolean;
   // Volatility
   ATR_14: boolean;
   BB_20_2: boolean;
@@ -119,21 +133,36 @@ export interface IndicatorsEnabled {
   KELTNER_20_1_5: boolean;
   DONCHIAN_20: boolean;
   Z_SCORE_50: boolean;
+  NATR_14: boolean;
+  ATR_14_SLOPE_5: boolean;
+  BB_WIDTH_20_2_SLOPE_5: boolean;
+  PARKINSON_VOL_20: boolean;
   // Volume
   VOLUME_MA_20: boolean;
   OBV: boolean;
   VOLUME_DELTA: boolean;
+  ADL: boolean;
+  VOL_OSC_5_20: boolean;
   // Price Change
   PRICE_CHANGE_1: boolean;
   PRICE_CHANGE_5: boolean;
   PRICE_CHANGE_10: boolean;
   PRICE_CHANGE_20: boolean;
-  // Candle Patterns
+  // Position
+  PRICE_PCTL_50: boolean;
+  BB_PCT_B_20_2: boolean;
+  DONCHIAN_POS_20: boolean;
+  // Candle Analysis
   CANDLE_BODY_PCT: boolean;
   CANDLE_WICK_UP_PCT: boolean;
   CANDLE_WICK_DOWN_PCT: boolean;
+  HL_RANGE_PCT: boolean;
+  CLV: boolean;
+  WICK_IMBALANCE: boolean;
   // Regime
   VOLATILITY_REGIME_100: boolean;
+  ER_10: boolean;
+  HURST_100: boolean;
 }
 
 export interface IndicatorsConfig {
@@ -267,29 +296,58 @@ export const DEFAULT_INDICATORS_ENABLED: IndicatorsEnabled = {
   EMA_9: true,
   EMA_21: true,
   EMA_50: true,
-  EMA_200: true,
+  EMA_200: false,
   SMA_20: true,
   VWAP: true,
+  VWAP_SESSION: true,
+  VWAP_DEVIATION: true,
+  PLUS_DI_14: true,
+  MINUS_DI_14: true,
+  ADX_14: true,
+  CHOP_14: true,
+  EMA_21_SLOPE_5: true,
+  EMA_50_SLOPE_10: true,
   RSI_14: true,
   MACD_12_26_9: true,
   ROC_14: true,
+  ROC_5: true,
+  ROC_10: true,
+  ROC_20: true,
+  ROC_1_MINUS_ROC_5: true,
+  STOCH_RSI_14: true,
+  TSI_25_13: true,
+  MFI_14: true,
   ATR_14: true,
   BB_20_2: true,
   BB_WIDTH_20_2: true,
   KELTNER_20_1_5: true,
   DONCHIAN_20: true,
   Z_SCORE_50: true,
+  NATR_14: true,
+  ATR_14_SLOPE_5: true,
+  BB_WIDTH_20_2_SLOPE_5: true,
+  PARKINSON_VOL_20: true,
   VOLUME_MA_20: true,
   OBV: true,
   VOLUME_DELTA: false,
+  ADL: true,
+  VOL_OSC_5_20: true,
   PRICE_CHANGE_1: true,
   PRICE_CHANGE_5: true,
   PRICE_CHANGE_10: true,
   PRICE_CHANGE_20: true,
+  PRICE_PCTL_50: true,
+  BB_PCT_B_20_2: true,
+  DONCHIAN_POS_20: true,
   CANDLE_BODY_PCT: true,
   CANDLE_WICK_UP_PCT: true,
   CANDLE_WICK_DOWN_PCT: true,
+  HL_RANGE_PCT: true,
+  CLV: true,
+  WICK_IMBALANCE: true,
   VOLATILITY_REGIME_100: true,
+  ER_10: true,
+  HURST_100: true,
 };
 
 export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
@@ -399,29 +457,21 @@ export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
 // ========================================
 
 export const INDICATOR_CATEGORIES = {
-  "Moving Averages": ["EMA_9", "EMA_21", "EMA_50", "EMA_200", "SMA_20", "VWAP"],
-  Oscillators: ["RSI_14", "MACD_12_26_9", "ROC_14"],
+  "Moving Averages": ["EMA_9", "EMA_21", "EMA_50", "EMA_200", "SMA_20", "VWAP", "VWAP_SESSION", "VWAP_DEVIATION"],
+  Trend: ["PLUS_DI_14", "MINUS_DI_14", "ADX_14", "CHOP_14", "EMA_21_SLOPE_5", "EMA_50_SLOPE_10"],
+  Oscillators: ["RSI_14", "MACD_12_26_9", "ROC_14", "ROC_5", "ROC_10", "ROC_20", "ROC_1_MINUS_ROC_5", "STOCH_RSI_14", "TSI_25_13", "MFI_14"],
   Volatility: [
-    "ATR_14",
-    "BB_20_2",
-    "BB_WIDTH_20_2",
-    "KELTNER_20_1_5",
-    "DONCHIAN_20",
-    "Z_SCORE_50",
+    "ATR_14", "BB_20_2", "BB_WIDTH_20_2", "KELTNER_20_1_5", "DONCHIAN_20", "Z_SCORE_50",
+    "NATR_14", "ATR_14_SLOPE_5", "BB_WIDTH_20_2_SLOPE_5", "PARKINSON_VOL_20",
   ],
-  Volume: ["VOLUME_MA_20", "OBV", "VOLUME_DELTA"],
-  "Price Change": [
-    "PRICE_CHANGE_1",
-    "PRICE_CHANGE_5",
-    "PRICE_CHANGE_10",
-    "PRICE_CHANGE_20",
-  ],
+  Volume: ["VOLUME_MA_20", "OBV", "VOLUME_DELTA", "ADL", "VOL_OSC_5_20"],
+  "Price Change": ["PRICE_CHANGE_1", "PRICE_CHANGE_5", "PRICE_CHANGE_10", "PRICE_CHANGE_20"],
+  Position: ["PRICE_PCTL_50", "BB_PCT_B_20_2", "DONCHIAN_POS_20"],
   "Candle Analysis": [
-    "CANDLE_BODY_PCT",
-    "CANDLE_WICK_UP_PCT",
-    "CANDLE_WICK_DOWN_PCT",
+    "CANDLE_BODY_PCT", "CANDLE_WICK_UP_PCT", "CANDLE_WICK_DOWN_PCT",
+    "HL_RANGE_PCT", "CLV", "WICK_IMBALANCE",
   ],
-  Regime: ["VOLATILITY_REGIME_100"],
+  Regime: ["VOLATILITY_REGIME_100", "ER_10", "HURST_100"],
 } as const;
 
 export const INDICATOR_LABELS: Record<string, string> = {
@@ -431,24 +481,53 @@ export const INDICATOR_LABELS: Record<string, string> = {
   EMA_200: "EMA 200",
   SMA_20: "SMA 20",
   VWAP: "VWAP",
+  VWAP_SESSION: "VWAP Session",
+  VWAP_DEVIATION: "VWAP Deviation",
+  PLUS_DI_14: "+DI 14",
+  MINUS_DI_14: "−DI 14",
+  ADX_14: "ADX 14",
+  CHOP_14: "Choppiness 14",
+  EMA_21_SLOPE_5: "EMA 21 Slope (5)",
+  EMA_50_SLOPE_10: "EMA 50 Slope (10)",
   RSI_14: "RSI 14",
   MACD_12_26_9: "MACD (12,26,9)",
   ROC_14: "ROC 14",
+  ROC_5: "ROC 5",
+  ROC_10: "ROC 10",
+  ROC_20: "ROC 20",
+  ROC_1_MINUS_ROC_5: "ROC 1 − ROC 5",
+  STOCH_RSI_14: "Stochastic RSI 14",
+  TSI_25_13: "TSI (25,13)",
+  MFI_14: "MFI 14",
   ATR_14: "ATR 14",
   BB_20_2: "Bollinger Bands (20,2)",
   BB_WIDTH_20_2: "BB Width (20,2)",
   KELTNER_20_1_5: "Keltner Channel (20,1.5)",
   DONCHIAN_20: "Donchian 20",
   Z_SCORE_50: "Z-Score 50",
+  NATR_14: "NATR 14",
+  ATR_14_SLOPE_5: "ATR 14 Slope (5)",
+  BB_WIDTH_20_2_SLOPE_5: "BB Width Slope (5)",
+  PARKINSON_VOL_20: "Parkinson Vol 20",
   VOLUME_MA_20: "Volume MA 20",
   OBV: "On-Balance Volume",
   VOLUME_DELTA: "Volume Delta",
-  PRICE_CHANGE_1: "Price Change 1",
-  PRICE_CHANGE_5: "Price Change 5",
-  PRICE_CHANGE_10: "Price Change 10",
-  PRICE_CHANGE_20: "Price Change 20",
+  ADL: "Accum/Dist Line",
+  VOL_OSC_5_20: "Volume Osc (5,20)",
+  PRICE_CHANGE_1: "Price Δ 1",
+  PRICE_CHANGE_5: "Price Δ 5",
+  PRICE_CHANGE_10: "Price Δ 10",
+  PRICE_CHANGE_20: "Price Δ 20",
+  PRICE_PCTL_50: "Price Percentile 50",
+  BB_PCT_B_20_2: "BB %B (20,2)",
+  DONCHIAN_POS_20: "Donchian Position 20",
   CANDLE_BODY_PCT: "Candle Body %",
   CANDLE_WICK_UP_PCT: "Upper Wick %",
   CANDLE_WICK_DOWN_PCT: "Lower Wick %",
+  HL_RANGE_PCT: "High-Low Range %",
+  CLV: "Close Location Value",
+  WICK_IMBALANCE: "Wick Imbalance",
   VOLATILITY_REGIME_100: "Volatility Regime 100",
+  ER_10: "Efficiency Ratio 10",
+  HURST_100: "Hurst Exponent 100",
 };
