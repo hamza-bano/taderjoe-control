@@ -1,4 +1,4 @@
-import { IndicatorsConfig, IndicatorsEnabled, INDICATOR_CATEGORIES, INDICATOR_LABELS } from "@/types/config";
+import { IndicatorsConfig, IndicatorsEnabled, INDICATOR_CATEGORIES, INDICATOR_LABELS, DEFAULT_INDICATORS_ENABLED } from "@/types/config";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,24 +17,26 @@ export function IndicatorsTab({ config, onChange }: IndicatorsTabProps) {
     });
   };
 
+  const allKeys = Object.keys(DEFAULT_INDICATORS_ENABLED) as (keyof IndicatorsEnabled)[];
+
   const enableAll = () => {
-    const allEnabled = Object.keys(config.enabled).reduce((acc, key) => {
-      acc[key as keyof IndicatorsEnabled] = true;
+    const allEnabled = allKeys.reduce((acc, key) => {
+      acc[key] = true;
       return acc;
     }, {} as IndicatorsEnabled);
     onChange({ ...config, enabled: allEnabled });
   };
 
   const disableAll = () => {
-    const allDisabled = Object.keys(config.enabled).reduce((acc, key) => {
-      acc[key as keyof IndicatorsEnabled] = false;
+    const allDisabled = allKeys.reduce((acc, key) => {
+      acc[key] = false;
       return acc;
     }, {} as IndicatorsEnabled);
     onChange({ ...config, enabled: allDisabled });
   };
 
-  const enabledCount = Object.values(config.enabled).filter(Boolean).length;
-  const totalCount = Object.keys(config.enabled).length;
+  const enabledCount = allKeys.filter((k) => config.enabled[k]).length;
+  const totalCount = allKeys.length;
 
   return (
     <div className="space-y-6">
