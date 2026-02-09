@@ -1,4 +1,8 @@
-import { TimeMachineConfig, TimeMachineTrigger, TriggerComparison } from "@/types/config";
+import {
+  TimeMachineConfig,
+  TimeMachineTrigger,
+  TriggerComparison,
+} from "@/types/config";
 import { FormField, NumberInput } from "../shared";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -6,11 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Trash2, Clock } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -32,9 +32,11 @@ const COMPARISON_OPTIONS: { value: TriggerComparison; label: string }[] = [
 ];
 
 export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
-  const updateSnapshotWindow = <K extends keyof TimeMachineConfig["snapshotWindow"]>(
+  const updateSnapshotWindow = <
+    K extends keyof TimeMachineConfig["snapshotWindow"],
+  >(
     key: K,
-    value: TimeMachineConfig["snapshotWindow"][K]
+    value: TimeMachineConfig["snapshotWindow"][K],
   ) => {
     onChange({
       ...config,
@@ -45,7 +47,7 @@ export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
   const addTrigger = () => {
     const newTrigger: TimeMachineTrigger = {
       id: `trigger_${Date.now()}`,
-      metric: "PRICE_CHANGE_PERCENT",
+      metric: "PriceChangePercent",
       lookbackCandles: 10,
       comparison: "GreaterOrEqual",
       threshold: 1.0,
@@ -77,7 +79,10 @@ export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
           Time Machine Settings
         </h3>
         <div className="grid gap-4 sm:grid-cols-3">
-          <FormField label="Save Data" description="Persist time machine results">
+          <FormField
+            label="Save Data"
+            description="Persist time machine results"
+          >
             <Switch
               checked={config.saveData}
               onCheckedChange={(v) => onChange({ ...config, saveData: v })}
@@ -171,11 +176,17 @@ export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
                 </CardHeader>
                 <CardContent className="pt-0 pb-4 px-4">
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                    <FormField label="Trigger ID" description="Unique identifier">
+                    <FormField
+                      label="Trigger ID"
+                      description="Unique identifier"
+                    >
                       <Input
                         value={trigger.id}
                         onChange={(e) =>
-                          updateTrigger(index, { ...trigger, id: e.target.value })
+                          updateTrigger(index, {
+                            ...trigger,
+                            id: e.target.value,
+                          })
                         }
                         placeholder="short_term_burst"
                         className="font-mono"
@@ -188,7 +199,7 @@ export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
                         onValueChange={(v) =>
                           updateTrigger(index, {
                             ...trigger,
-                            metric: v as "PRICE_CHANGE_PERCENT",
+                            metric: v as "PriceChangePercent",
                           })
                         }
                       >
@@ -196,7 +207,7 @@ export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="PRICE_CHANGE_PERCENT">
+                          <SelectItem value="PriceChangePercent">
                             PRICE_CHANGE_PERCENT
                           </SelectItem>
                         </SelectContent>
@@ -244,7 +255,10 @@ export function TimeMachineTab({ config, onChange }: TimeMachineTabProps) {
                       <NumberInput
                         value={trigger.lookbackCandles}
                         onChange={(v) =>
-                          updateTrigger(index, { ...trigger, lookbackCandles: v })
+                          updateTrigger(index, {
+                            ...trigger,
+                            lookbackCandles: v,
+                          })
                         }
                         min={1}
                         max={1000}

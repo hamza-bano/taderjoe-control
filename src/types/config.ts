@@ -30,7 +30,22 @@ export interface SessionConfig {
 // ========================================
 
 export type MarketMode = "live" | "historic";
-export type KlineInterval = "1m" | "3m" | "5m" | "15m" | "30m" | "1h" | "2h" | "4h" | "6h" | "8h" | "12h" | "1d" | "3d" | "1w" | "1M";
+export type KlineInterval =
+  | "1m"
+  | "3m"
+  | "5m"
+  | "15m"
+  | "30m"
+  | "1h"
+  | "2h"
+  | "4h"
+  | "6h"
+  | "8h"
+  | "12h"
+  | "1d"
+  | "3d"
+  | "1w"
+  | "1M";
 export type Exchange = "binance" | "bybit" | "okx" | "coinbase";
 
 export interface OrderbookStream {
@@ -170,8 +185,12 @@ export interface StrategyConfig {
 // TIME MACHINE CONFIG
 // ========================================
 
-export type TriggerMetric = "PRICE_CHANGE_PERCENT";
-export type TriggerComparison = "Greater" | "GreaterOrEqual" | "Less" | "LessOrEqual";
+export type TriggerMetric = "PriceChangePercent";
+export type TriggerComparison =
+  | "Greater"
+  | "GreaterOrEqual"
+  | "Less"
+  | "LessOrEqual";
 
 export interface TimeMachineTrigger {
   id: string;
@@ -349,7 +368,7 @@ export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
     triggers: [
       {
         id: "short_term_burst",
-        metric: "PRICE_CHANGE_PERCENT",
+        metric: "PriceChangePercent",
         lookbackCandles: 10,
         comparison: "GreaterOrEqual",
         threshold: 1.0,
@@ -381,12 +400,28 @@ export const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
 
 export const INDICATOR_CATEGORIES = {
   "Moving Averages": ["EMA_9", "EMA_21", "EMA_50", "EMA_200", "SMA_20", "VWAP"],
-  "Oscillators": ["RSI_14", "MACD_12_26_9", "ROC_14"],
-  "Volatility": ["ATR_14", "BB_20_2", "BB_WIDTH_20_2", "KELTNER_20_1_5", "DONCHIAN_20", "Z_SCORE_50"],
-  "Volume": ["VOLUME_MA_20", "OBV", "VOLUME_DELTA"],
-  "Price Change": ["PRICE_CHANGE_1", "PRICE_CHANGE_5", "PRICE_CHANGE_10", "PRICE_CHANGE_20"],
-  "Candle Analysis": ["CANDLE_BODY_PCT", "CANDLE_WICK_UP_PCT", "CANDLE_WICK_DOWN_PCT"],
-  "Regime": ["VOLATILITY_REGIME_100"],
+  Oscillators: ["RSI_14", "MACD_12_26_9", "ROC_14"],
+  Volatility: [
+    "ATR_14",
+    "BB_20_2",
+    "BB_WIDTH_20_2",
+    "KELTNER_20_1_5",
+    "DONCHIAN_20",
+    "Z_SCORE_50",
+  ],
+  Volume: ["VOLUME_MA_20", "OBV", "VOLUME_DELTA"],
+  "Price Change": [
+    "PRICE_CHANGE_1",
+    "PRICE_CHANGE_5",
+    "PRICE_CHANGE_10",
+    "PRICE_CHANGE_20",
+  ],
+  "Candle Analysis": [
+    "CANDLE_BODY_PCT",
+    "CANDLE_WICK_UP_PCT",
+    "CANDLE_WICK_DOWN_PCT",
+  ],
+  Regime: ["VOLATILITY_REGIME_100"],
 } as const;
 
 export const INDICATOR_LABELS: Record<string, string> = {
