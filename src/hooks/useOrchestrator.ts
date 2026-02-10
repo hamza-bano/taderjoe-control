@@ -21,6 +21,7 @@ import {
 } from "@/types/orchestrator";
 import { DEFAULT_PLATFORM_CONFIG } from "@/types/config";
 import { toast } from "@/hooks/use-toast";
+import { StrategyTradeEvent } from "@/types/trade";
 
 const HUB_URL = "http://localhost:5114/hub/orchestrator";
 
@@ -39,10 +40,12 @@ const initialState: OrchestratorState = {
   lastSnapshotAt: null,
 };
 
-export function useOrchestrator() {
+export function useOrchestrator(onTradeEvent?: (event: StrategyTradeEvent) => void) {
   const [state, setState] = useState<OrchestratorState>(initialState);
   const connectionRef = useRef<HubConnection | null>(null);
   const reconnectingRef = useRef(false);
+  const onTradeEventRef = useRef(onTradeEvent);
+  onTradeEventRef.current = onTradeEvent;
 
   // Update connection status
   const setConnected = useCallback((connected: boolean) => {
@@ -234,6 +237,9 @@ export function useOrchestrator() {
     connection.on("ServiceHeartbeat", handleServiceHeartbeat);
     connection.on("ConfigUpdateResult", handleConfigUpdateResult);
     connection.on("configvalidationresult", configvalidationresult);
+    connection.on("StrategyTradeEvent", (event: StrategyTradeEvent) => {
+      onTradeEventRef.current?.(event);
+    });
 
     // Connection lifecycle handlers
     connection.onclose((error) => {

@@ -3,6 +3,7 @@ import { TopBar } from "@/components/TopBar";
 import { SessionControl } from "@/components/SessionControl";
 import { ServiceHealth } from "@/components/ServiceHealth";
 import { ConfigurationPanel } from "@/components/config";
+import { TradeSectionContainer } from "@/components/TradeSectionContainer";
 
 export default function Dashboard() {
   return (
@@ -12,6 +13,7 @@ export default function Dashboard() {
         <main className="flex-1 p-6 space-y-6">
           <SessionControl />
           <ServiceHealth />
+          <TradeSectionContainer />
           <ConfigurationPanel />
         </main>
       </div>
