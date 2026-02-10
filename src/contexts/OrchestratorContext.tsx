@@ -1,4 +1,4 @@
-import { createContext, useContext, ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, ReactNode } from "react";
 import { useOrchestrator } from "@/hooks/useOrchestrator";
 import { useTradeTracker } from "@/hooks/useTradeTracker";
 import { SessionState } from "@/types/orchestrator";
@@ -14,16 +14,23 @@ export function OrchestratorProvider({ children }: { children: ReactNode }) {
 
   const orchestrator = useOrchestrator(trades.handleTradeEvent);
 
-  // Reset trades when session goes to Idle (session ended)
-  // We keep trades visible so user can review, but reset on new session start
-  const prevSessionState = orchestrator.session?.state;
-  if (
-    prevSessionState === SessionState.Starting &&
-    trades.sessionId !== null &&
-    trades.sessionId !== orchestrator.session?.sessionId
-  ) {
-    trades.resetTrades(orchestrator.session?.sessionId ?? undefined);
-  }
+  // Reset trades when a NEW session starts (different sessionId)
+  const prevSessionIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const currentSessionId = orchestrator.session?.sessionId ?? null;
+    const sessionState = orchestrator.session?.state;
+
+    if (
+      sessionState === SessionState.Starting &&
+      currentSessionId !== null &&
+      prevSessionIdRef.current !== null &&
+      currentSessionId !== prevSessionIdRef.current
+    ) {
+      trades.resetTrades(currentSessionId);
+    }
+
+    prevSessionIdRef.current = currentSessionId;
+  }, [orchestrator.session?.sessionId, orchestrator.session?.state, trades.resetTrades]);
 
   return (
     <OrchestratorContext.Provider value={{ ...orchestrator, trades }}>
