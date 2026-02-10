@@ -30,6 +30,17 @@ export function useTradeTracker() {
   const handleTradeEvent = useCallback((event: StrategyTradeEvent) => {
     console.log("[TradeTracker] StrategyTradeEvent", event);
 
+    // console.group("[TradeTracker] RAW EVENT INSPECTION");
+    // console.log("event ===", event);
+    // console.log("keys:", Object.keys(event as any));
+    // console.log("Symbol value:", (event as any).Symbol);
+    // console.log("Symbol typeof:", typeof (event as any).Symbol);
+    // console.log("symbol value:", (event as any).symbol);
+    // console.log("symbol typeof:", typeof (event as any).symbol);
+    // console.log("EventType:", (event as any).EventType);
+    // console.log("EventType typeof:", typeof (event as any).EventType);
+    // console.groupEnd();
+
     setState((prev) => {
       // Auto-show and set session
       const next: TradeSessionState = {
@@ -40,11 +51,25 @@ export function useTradeTracker() {
         completedTrades: [...prev.completedTrades],
       };
 
-      if (event.EventType === "entry") {
+      const parsed = typeof event === "string" ? JSON.parse(event) : event;
+      const raw = parsed as any;
+
+      const symbol = raw.Symbol != null ? String(raw.Symbol).trim() : "";
+
+      const type =
+        raw.EventType != null ? String(raw.EventType).toLowerCase().trim() : "";
+
+      if (!symbol) {
+        console.warn("[TradeTracker] Event missing symbol", event);
+        return next;
+      }
+
+      if (type === "entry") {
+        console.log("[TradeTracker] Evaluating Entry");
         const entry = event as TradeEntryEvent;
         const openEntry: OpenTrade = {
           id: `trade_${++tradeIdCounter}`,
-          symbol: entry.Symbol,
+          symbol: symbol,
           interval: entry.Interval,
           strategyMode: entry.StrategyMode,
           entryTime: entry.Time,
@@ -54,7 +79,8 @@ export function useTradeTracker() {
         const stack = next.openTrades.get(entry.Symbol) || [];
         stack.push(openEntry);
         next.openTrades.set(entry.Symbol, stack);
-      } else {
+      } else if (type === "exit") {
+        console.log("[TradeTracker] Evaluating Exit");
         const exit = event as TradeExitEvent;
         const stack = next.openTrades.get(exit.Symbol) || [];
 
@@ -65,7 +91,7 @@ export function useTradeTracker() {
 
           const completed: CompletedTrade = {
             id: matchedEntry.id,
-            symbol: exit.Symbol,
+            symbol: symbol,
             interval: exit.Interval,
             strategyMode: matchedEntry.strategyMode,
             entryTime: matchedEntry.entryTime,
@@ -74,7 +100,10 @@ export function useTradeTracker() {
             exitPrice: exit.Price,
             exitReason: exit.ExitReason,
             pnl: exit.Pnl,
-            pnlPercent: ((exit.Price - matchedEntry.entryPrice) / matchedEntry.entryPrice) * 100,
+            pnlPercent:
+              ((exit.Price - matchedEntry.entryPrice) /
+                matchedEntry.entryPrice) *
+              100,
             duration: exit.Time - matchedEntry.entryTime,
           };
 
@@ -84,8 +113,13 @@ export function useTradeTracker() {
           next.winCount = prev.winCount + (exit.Pnl >= 0 ? 1 : 0);
           next.lossCount = prev.lossCount + (exit.Pnl < 0 ? 1 : 0);
         } else {
-          console.warn("[TradeTracker] Exit with no matching entry for", exit.Symbol);
+          console.warn(
+            "[TradeTracker] Exit with no matching entry for",
+            (event as any).Symbol,
+          );
         }
+      } else {
+        console.warn("[TradeTracker] Unknown event type", event);
       }
 
       return next;
@@ -126,8 +160,10 @@ export function useTradeTracker() {
         totalPnl,
         avgPnl: trades.length > 0 ? totalPnl / trades.length : 0,
         winRate: trades.length > 0 ? (wins.length / trades.length) * 100 : 0,
-        bestTrade: trades.length > 0 ? Math.max(...trades.map((t) => t.pnl)) : 0,
-        worstTrade: trades.length > 0 ? Math.min(...trades.map((t) => t.pnl)) : 0,
+        bestTrade:
+          trades.length > 0 ? Math.max(...trades.map((t) => t.pnl)) : 0,
+        worstTrade:
+          trades.length > 0 ? Math.min(...trades.map((t) => t.pnl)) : 0,
       };
     });
   }, [state.completedTrades]);
@@ -142,7 +178,9 @@ export function useTradeTracker() {
 
   // Cumulative PnL series for chart
   const getCumulativePnl = useCallback((): { time: number; pnl: number }[] => {
-    const sorted = [...state.completedTrades].sort((a, b) => a.exitTime - b.exitTime);
+    const sorted = [...state.completedTrades].sort(
+      (a, b) => a.exitTime - b.exitTime,
+    );
     let cum = 0;
     return sorted.map((t) => {
       cum += t.pnl;

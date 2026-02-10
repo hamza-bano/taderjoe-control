@@ -40,7 +40,9 @@ const initialState: OrchestratorState = {
   lastSnapshotAt: null,
 };
 
-export function useOrchestrator(onTradeEvent?: (event: StrategyTradeEvent) => void) {
+export function useOrchestrator(
+  onTradeEvent?: (event: StrategyTradeEvent) => void,
+) {
   const [state, setState] = useState<OrchestratorState>(initialState);
   const connectionRef = useRef<HubConnection | null>(null);
   const reconnectingRef = useRef(false);
@@ -238,6 +240,7 @@ export function useOrchestrator(onTradeEvent?: (event: StrategyTradeEvent) => vo
     connection.on("ConfigUpdateResult", handleConfigUpdateResult);
     connection.on("configvalidationresult", configvalidationresult);
     connection.on("StrategyTradeEvent", (event: StrategyTradeEvent) => {
+      console.log("StrategyTradeEvent", event);
       onTradeEventRef.current?.(event);
     });
 
@@ -378,27 +381,33 @@ export function useOrchestrator(onTradeEvent?: (event: StrategyTradeEvent) => vo
   }, []);
 
   // Format config for backend - removes irrelevant market config based on mode
-  const formatConfigForBackend = useCallback((config: PlatformConfig): PlatformConfig => {
-    const formattedConfig = { ...config };
-    
-    // Clean up market config based on mode
-    if (config.market.mode === "live") {
-      // Remove historic config when in live mode
-      formattedConfig.market = {
-        ...config.market,
-        historic: undefined as unknown as typeof config.market.historic,
-      };
-    } else if (config.market.mode === "historic") {
-      // Remove live config when in historic mode
-      formattedConfig.market = {
-        ...config.market,
-        live: undefined as unknown as typeof config.market.live,
-      };
-    }
+  const formatConfigForBackend = useCallback(
+    (config: PlatformConfig): PlatformConfig => {
+      const formattedConfig = { ...config };
 
-    console.log("[Orchestrator] Formatted config for backend:", formattedConfig);
-    return formattedConfig;
-  }, []);
+      // Clean up market config based on mode
+      if (config.market.mode === "live") {
+        // Remove historic config when in live mode
+        formattedConfig.market = {
+          ...config.market,
+          historic: undefined as unknown as typeof config.market.historic,
+        };
+      } else if (config.market.mode === "historic") {
+        // Remove live config when in historic mode
+        formattedConfig.market = {
+          ...config.market,
+          live: undefined as unknown as typeof config.market.live,
+        };
+      }
+
+      console.log(
+        "[Orchestrator] Formatted config for backend:",
+        formattedConfig,
+      );
+      return formattedConfig;
+    },
+    [],
+  );
 
   // Send full config to backend
   // Config formatting happens in: src/hooks/useOrchestrator.ts (formatConfigForBackend)
